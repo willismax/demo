@@ -16,7 +16,12 @@
           background-image: url('https://source.unsplash.com/960x640/?design');
           color: white;
           font-family: Arial, sans-serif;
-          display: flex;
+          
+      }
+
+      .container{
+        background: linear-gradient(45deg,red,blue);
+        display: flex;
           flex-direction: column;
           margin: 0 auto;
           text-align:center;
@@ -36,25 +41,27 @@
           bottom: 0;
           width: 100%;
           background-color: rgba(0,0,0,0.5);
-          color: white;
           text-align: center;
       }
     </style>
 </head>
 <body>
-    <header>
-        <h1>Hi 你好</h1>
-        <p>這是我的個人網站</p>
-    </header>
-
-    <main>
-        <h2>關於我</h2>
-        <!-- 這裡放置你的作品或者項目的連結 -->
-    </main>
-
-    <footer>
-        <p>聯絡我：我的email</p>
-    </footer>
+    <div class="container">
+        <header>
+            <h1>Hi 你好</h1>
+            <p>這是我的個人網站</p>
+        </header>
+    
+        <main>
+            <h2>關於我</h2>
+            <!-- 這裡放置你的作品或者項目的連結 -->
+        </main>
+    
+        <footer>
+            <p>聯絡我：我的email</p>
+        </footer>
+    </div>
+    
 
     <script>
         // 這裡放置JavaScript程式碼
