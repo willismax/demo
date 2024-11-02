@@ -30,9 +30,9 @@
     <title>AI 對話網站</title>
     <style>
         body {
-          background-image: url('https://source.unsplash.com/960x640/?design');
-          color: white;
-          font-family: Arial, sans-serif;
+          background-image: url('https://source.unsplash.com/1600x900/?nature,water');
+          color: #333;
+          font-family: 'Roboto', sans-serif;
           margin: 0;
           padding: 0;
           display: flex;
@@ -43,7 +43,7 @@
       }
 
       .container{
-        background: linear-gradient(45deg,red,blue);
+        background: linear-gradient(45deg, #ff6f61, #6b5b95);
         display: flex;
           flex-direction: column;
           margin: 0 auto;
@@ -52,20 +52,25 @@
           max-width: 600px;
           padding: 20px;
           box-sizing: border-box;
+          border-radius: 10px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
 
       h1, h2 {
           text-align: center;
+          color: #ff6f61;
       }
 
       .btn{
         padding: 0.5rem 3rem;
         text-decoration: none;
-        background: #deff23;
+        background: #6b5b95;
+        color: white;
         border-radius: 15%;
+        transition: background 0.3s ease;
       }
       .btn:hover{
-        background: #ffd504;
+        background: #ff6f61;
       }
 
 
@@ -82,33 +87,43 @@
           width: 100%;
           background-color: rgba(0,0,0,0.5);
           text-align: center;
+          padding: 10px;
+          color: white;
       }
 
       .chat-container {
           width: 100%;
           max-width: 800px;
-          background-color: rgba(0, 0, 0, 0.7);
+          background-color: rgba(255, 255, 255, 0.9);
           padding: 20px;
           border-radius: 10px;
           margin-top: 20px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
 
       .chat-history {
           max-height: 400px;
           overflow-y: auto;
           margin-bottom: 20px;
+          padding: 10px;
+          background-color: #f9f9f9;
+          border-radius: 10px;
       }
 
       .chat-message {
           margin-bottom: 10px;
+          padding: 10px;
+          border-radius: 10px;
       }
 
       .user-message {
           text-align: right;
+          background-color: #e1f5fe;
       }
 
       .ai-message {
           text-align: left;
+          background-color: #ffebee;
       }
 
       .login-form {
@@ -123,12 +138,23 @@
           margin-bottom: 10px;
           padding: 10px;
           font-size: 16px;
+          border: 1px solid #ccc;
+          border-radius: 5px;
       }
 
       .login-form button {
           padding: 10px 20px;
           font-size: 16px;
           cursor: pointer;
+          background-color: #6b5b95;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          transition: background 0.3s ease;
+      }
+
+      .login-form button:hover {
+          background-color: #ff6f61;
       }
     </style>
     <!-- Include the LIFF SDK script -->
@@ -164,11 +190,11 @@
     <script>
         // 這裡放置JavaScript程式碼
       document.querySelector('h1').addEventListener('mouseover', function() {
-          this.style.color = 'lightblue';
+          this.style.color = '#6b5b95';
       });
 
       document.querySelector('h1').addEventListener('mouseout', function() {
-          this.style.color = 'white';
+          this.style.color = '#ff6f61';
       });
 
       // Initialize LIFF and handle user login
