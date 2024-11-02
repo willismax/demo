@@ -72,6 +72,8 @@
           text-align: center;
       }
     </style>
+    <!-- Include the LIFF SDK script -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
     <div class="container">
@@ -84,6 +86,12 @@
             <a href="#" class="btn"><h2>關於我</h2></a>
             <!-- 這裡放置你的作品或者項目的連結 -->
             
+            <!-- Add a text input field for user input and a button to submit the input -->
+            <input type="text" id="userInput" placeholder="輸入文字">
+            <button id="submitButton">提交</button>
+            
+            <!-- Add a div to display the response from the OpenAI API -->
+            <div id="response"></div>
         </main>
     
         <footer>
@@ -100,6 +108,36 @@
 
       document.querySelector('h1').addEventListener('mouseout', function() {
           this.style.color = 'white';
+      });
+
+      // Initialize LIFF and handle user login
+      liff.init({ liffId: "YOUR_LIFF_ID" })
+        .then(() => {
+          if (!liff.isLoggedIn()) {
+            liff.login();
+          }
+        })
+        .catch((err) => {
+          console.error('LIFF initialization failed', err);
+        });
+
+      // Add a script to handle the user input, send it to the OpenAI API, and display the response
+      document.getElementById('submitButton').addEventListener('click', function() {
+        const userInput = document.getElementById('userInput').value;
+        fetch('/openai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ input: userInput })
+        })
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('response').innerText = data.response;
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
       });
     </script>
     <!-- <script type="text/javascript" src="https://ssl.gstatic.com/trends_nrtr/3349_RC01/embed_loader.js"></script> 
