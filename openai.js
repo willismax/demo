@@ -30,8 +30,17 @@ async function handleImageInput(imageData) {
   return response.data.data[0].url;
 }
 
+async function handleAIConversation(messages) {
+  const response = await openai.createChatCompletion({
+    model: "gpt-3.5-turbo",
+    messages: messages,
+  });
+  return response.data.choices[0].message.content.trim();
+}
+
 module.exports = {
   handleTextInput,
   handleVoiceInput,
   handleImageInput,
+  handleAIConversation,
 };

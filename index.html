@@ -27,13 +27,19 @@
         src="https://www.facebook.com/tr?id=212741651307312&ev=PageView&noscript=1"
         /></noscript>
         <!-- End Meta Pixel Code -->
-    <title>Hi 這是我的個人網站</title>
+    <title>AI 對話網站</title>
     <style>
         body {
           background-image: url('https://source.unsplash.com/960x640/?design');
           color: white;
           font-family: Arial, sans-serif;
-          
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
       }
 
       .container{
@@ -42,6 +48,10 @@
           flex-direction: column;
           margin: 0 auto;
           text-align:center;
+          width: 100%;
+          max-width: 600px;
+          padding: 20px;
+          box-sizing: border-box;
       }
 
       h1, h2 {
@@ -62,6 +72,8 @@
       main {
           display: flex;
           justify-content: center;
+          flex-direction: column;
+          align-items: center;
       }
 
       footer {
@@ -71,6 +83,53 @@
           background-color: rgba(0,0,0,0.5);
           text-align: center;
       }
+
+      .chat-container {
+          width: 100%;
+          max-width: 800px;
+          background-color: rgba(0, 0, 0, 0.7);
+          padding: 20px;
+          border-radius: 10px;
+          margin-top: 20px;
+      }
+
+      .chat-history {
+          max-height: 400px;
+          overflow-y: auto;
+          margin-bottom: 20px;
+      }
+
+      .chat-message {
+          margin-bottom: 10px;
+      }
+
+      .user-message {
+          text-align: right;
+      }
+
+      .ai-message {
+          text-align: left;
+      }
+
+      .login-form {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+      }
+
+      .login-form input {
+          margin-bottom: 10px;
+          padding: 10px;
+          font-size: 16px;
+      }
+
+      .login-form button {
+          padding: 10px 20px;
+          font-size: 16px;
+          cursor: pointer;
+      }
     </style>
     <!-- Include the LIFF SDK script -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -78,20 +137,22 @@
 <body>
     <div class="container">
         <header>
-            <h1>Hi 你好</h1>
-            <p>此網站是要 DEMO 基本排版、GA 與 Pexel 的設定</p>
+            <h1>AI 對話網站</h1>
+            <p>此網站是用於與 AI 進行對話</p>
         </header>
     
         <main>
-            <a href="#" class="btn"><h2>關於我</h2></a>
-            <!-- 這裡放置你的作品或者項目的連結 -->
-            
-            <!-- Add a text input field for user input and a button to submit the input -->
-            <input type="text" id="userInput" placeholder="輸入文字">
-            <button id="submitButton">提交</button>
-            
-            <!-- Add a div to display the response from the OpenAI API -->
-            <div id="response"></div>
+            <!-- Add a chat container to display chat history -->
+            <div class="chat-container" id="chatContainer" style="display: none;">
+                <div class="chat-history" id="chatHistory"></div>
+                <input type="text" id="userInput" placeholder="輸入文字">
+                <button id="submitButton">提交</button>
+            </div>
+            <!-- Add a login form -->
+            <div class="login-form" id="loginForm">
+                <input type="password" id="passwordInput" placeholder="輸入密碼">
+                <button id="loginButton">登入</button>
+            </div>
         </main>
     
         <footer>
@@ -133,11 +194,33 @@
         })
         .then(response => response.json())
         .then(data => {
-          document.getElementById('response').innerText = data.response;
+          const chatHistory = document.getElementById('chatHistory');
+          const userMessage = document.createElement('div');
+          userMessage.className = 'chat-message user-message';
+          userMessage.innerText = userInput;
+          chatHistory.appendChild(userMessage);
+
+          const aiMessage = document.createElement('div');
+          aiMessage.className = 'chat-message ai-message';
+          aiMessage.innerText = data.response;
+          chatHistory.appendChild(aiMessage);
+
+          chatHistory.scrollTop = chatHistory.scrollHeight;
         })
         .catch(error => {
           console.error('Error:', error);
         });
+      });
+
+      // Add a script to handle login
+      document.getElementById('loginButton').addEventListener('click', function() {
+        const passwordInput = document.getElementById('passwordInput').value;
+        if (passwordInput === '1234') {
+          document.getElementById('loginForm').style.display = 'none';
+          document.getElementById('chatContainer').style.display = 'block';
+        } else {
+          alert('密碼錯誤');
+        }
       });
     </script>
     <!-- <script type="text/javascript" src="https://ssl.gstatic.com/trends_nrtr/3349_RC01/embed_loader.js"></script> 
