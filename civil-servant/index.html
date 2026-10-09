@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>少做少錯</title>
+<meta name="description" content="公務員的一天：做了可能被陳情，不做也可能被陳情。改編自真實新聞案例的小遊戲。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: the start screen is a 公文「簽」on a 560px column; play is a full-screen top-down office canvas under a navy 打卡鐘 HUD; every event slides up as a 便箋 with 甲乙丙案 to pick from. */
+:root{
+  --ground:#e4e8e3; --sheet:#fcfcf7; --ink:#1d2330; --muted:#596273; --rule:#d2d7cf;
+  --seal:#bf2a1e; --blue:#1d4f91; --ok:#2b7a4b; --hud:#1d2a3d; --hud-ink:#e9eef5; --led:#ffb547;
+  --over-bg:#101317; --over-fg:#e8ebee; --over-rule:rgba(255,255,255,.18);
+  --shadow:0 1px 0 rgba(29,35,48,.08),0 8px 22px -12px rgba(29,35,48,.4);
+  --f-display:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --f-doc:"LXGW WenKai TC","DFKai-SB","BiauKai","Kaiti TC",serif;
+  --f-ui:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#121619; --sheet:#1b2026; --ink:#e3e7ec; --muted:#9aa3b0; --rule:#2e353e;
+  --seal:#ff6b5c; --blue:#8fb2ff; --ok:#6fd39a; --hud:#152033; --hud-ink:#e9eef5; --led:#ffb547;
+  --shadow:0 1px 0 rgba(0,0,0,.4),0 8px 22px -12px rgba(0,0,0,.85); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ground:#121619; --sheet:#1b2026; --ink:#e3e7ec; --muted:#9aa3b0; --rule:#2e353e;
+  --seal:#ff6b5c; --blue:#8fb2ff; --ok:#6fd39a; --hud:#152033; --hud-ink:#e9eef5; --led:#ffb547;
+  --shadow:0 1px 0 rgba(0,0,0,.4),0 8px 22px -12px rgba(0,0,0,.85); color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.65}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:24px 56px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+h1,h2,h3{text-wrap:balance;margin:0}
+a{color:inherit}
+
+/* ===== 首頁：公文「簽」 ===== */
+.memo{position:relative;background:var(--sheet);border:1px solid var(--rule);border-radius:3px;box-shadow:var(--shadow);padding:20px 20px 24px;display:grid;gap:14px;overflow:hidden}
+.memo-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:10px}
+.org{font-family:var(--f-doc);font-size:17px;font-weight:700;letter-spacing:.12em}
+.meta{display:grid;grid-template-columns:auto auto;gap:0 10px;font-size:12px;color:var(--muted);margin:0}
+.meta dt{letter-spacing:.1em}.meta dd{margin:0;color:var(--seal);font-weight:700}
+.eyebrow{font-size:12px;letter-spacing:.18em;color:var(--muted);margin:0}
+.title{font-family:var(--f-display);font-weight:900;font-size:clamp(40px,12vw,64px);line-height:1.12;letter-spacing:.04em}
+.title em{font-style:normal;color:var(--seal)}
+.tag{font-family:var(--f-doc);font-size:20px;margin:0}
+.msec{display:grid;grid-template-columns:4.2em 1fr;gap:0 4px;font-family:var(--f-doc);font-size:17px;line-height:1.8}
+.msec h2{font-size:17px;font-weight:700;font-family:var(--f-doc)}
+.msec p{margin:0;min-width:0}
+.cn{list-style:none;margin:0;padding:0;display:grid;gap:4px;min-width:0}
+.cn li{display:grid;grid-template-columns:2em 1fr}
+.cn li>span:first-child{font-weight:700}
+.cn b{color:var(--seal);font-family:var(--f-ui);font-variant-numeric:tabular-nums}
+.cn small,.src{font-family:var(--f-ui);font-size:12px;color:var(--muted)}
+.flowline{font-size:15px;color:var(--muted)}
+.primary{background:var(--seal);color:#fff;border:none}
+.big-btn{display:block;width:100%;max-width:320px;padding:15px;border-radius:6px;font-size:17px;font-weight:700;letter-spacing:.12em;box-shadow:0 3px 0 color-mix(in srgb,var(--seal) 60%,#000)}
+.big-btn:active{transform:translateY(2px);box-shadow:0 1px 0 color-mix(in srgb,var(--seal) 60%,#000)}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.decide{position:absolute;right:18px;top:64px;width:76px;height:76px;border:3px double var(--seal);color:var(--seal);border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:900;font-size:22px;letter-spacing:.1em;transform:rotate(-14deg);opacity:.85;pointer-events:none}
+.record{font-size:12px;color:var(--muted);margin:0}
+
+/* ===== 遊戲外框 ===== */
+#game{position:fixed;inset:0;display:flex;flex-direction:column;background:#2a3038;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.hud{background:var(--hud);color:var(--hud-ink);padding:8px 14px 9px;display:grid;gap:6px;border-bottom:3px solid #0d1522;flex:none}
+.hud-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hud-l{min-width:0}
+.who{font-size:12px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clock{font-family:"Noto Sans TC",ui-monospace,monospace;font-weight:700;font-size:28px;line-height:1;font-variant-numeric:tabular-nums;color:var(--led);text-shadow:0 0 10px rgba(255,181,71,.45);letter-spacing:.04em}
+.hud-r{display:flex;align-items:center;gap:12px}
+.ctr{text-align:right;font-size:10px;letter-spacing:.08em;opacity:.9;line-height:1.3}
+.ctr b{display:block;font-size:18px;letter-spacing:0;font-variant-numeric:tabular-nums}
+.hbtn{background:transparent;border:1px solid rgba(255,255,255,.35);color:var(--hud-ink);border-radius:4px;padding:3px 8px;font-size:12px;white-space:nowrap}
+.flow{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;font-size:11px;white-space:nowrap}
+.flow::-webkit-scrollbar{display:none}
+.flow span{padding:1px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.22);opacity:.6}
+.flow span.done{opacity:.35;text-decoration:line-through}
+.flow span.now{opacity:1;background:var(--led);color:#1d2330;border-color:var(--led);font-weight:700}
+.goalrow{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;justify-content:space-between}
+.goal{font-size:12.5px;color:var(--led);min-width:0}
+.sbtns{display:flex;gap:6px}
+#stage{position:relative;flex:1;min-height:0;overflow:hidden}
+#cv{display:block;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none}
+#toast{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);max-width:calc(100% - 32px);background:rgba(16,20,26,.9);color:#f2f2ea;padding:7px 14px;border-radius:6px;font-size:13.5px;text-align:center;pointer-events:none;transition:opacity .3s;opacity:0}
+#toast.on{opacity:1}
+#banner{position:absolute;left:50%;top:36%;width:max-content;transform:translate(-50%,-50%) scale(.96);text-align:center;color:#fff;background:rgba(16,20,26,.88);padding:14px 26px;border-radius:10px;pointer-events:none;opacity:0;transition:opacity .35s,transform .35s;max-width:calc(100% - 32px)}
+#banner.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#banner b{display:block;font-size:28px;letter-spacing:.06em;color:var(--led);font-variant-numeric:tabular-nums}
+#banner span{display:block;font-size:15px;margin-top:4px}
+.ctlhint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:12px;color:#fff;background:rgba(0,0,0,.5);padding:4px 10px;border-radius:999px;pointer-events:none;white-space:nowrap;transition:opacity .6s}
+#shade{position:absolute;inset:0;background:rgba(8,11,15,.5)}
+#modal{position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow-y:auto;padding:0 12px 14px;overscroll-behavior:contain}
+#modal .doc{max-width:560px;margin:16px auto 0}
+#pauseMsg{position:absolute;inset:0;display:grid;place-items:center;background:rgba(8,11,15,.55);color:#fff;font-family:var(--f-display);font-size:28px;letter-spacing:.3em}
+
+/* ===== 便箋（事件卡） ===== */
+.doc{background:var(--sheet);border:1px solid var(--rule);border-radius:3px;box-shadow:var(--shadow);padding:16px 18px 18px;position:relative}
+.doc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1.5px solid var(--ink);padding-bottom:6px}
+.doc-head .org{font-size:15px}
+.speed{font-size:12px;color:var(--seal);border:1.5px solid var(--seal);padding:0 6px;border-radius:2px;letter-spacing:.1em;font-weight:700}
+.speak{margin-left:auto;background:transparent;border:1px solid var(--blue);color:var(--blue);border-radius:999px;padding:1px 10px;font-size:12px}
+.doc-meta{font-size:12px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+.doc h2{font-family:var(--f-doc);font-weight:700;font-size:22px;line-height:1.4;margin-top:6px}
+.lbl{color:var(--muted);font-weight:700}
+.narr{font-family:var(--f-doc);font-size:18px;line-height:1.75;margin:6px 0 0;max-width:60ch}
+.lbl2{font-family:var(--f-doc);font-size:16px;color:var(--muted);font-weight:700;margin-top:12px}
+.choices{display:grid;gap:9px;margin-top:6px}
+.card{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;padding:10px 12px;background:var(--sheet);border:1.5px solid var(--ink);border-radius:4px;box-shadow:3px 3px 0 var(--ink);transition:transform .12s,box-shadow .12s}
+.card:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.card:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.card .k{flex:none;font-family:var(--f-doc);font-weight:700;color:var(--blue);font-size:15px;padding-top:1px;white-space:nowrap}
+.card .t{min-width:0;font-size:15px;font-weight:500;line-height:1.55;padding-top:1px}
+.card[disabled]{opacity:.35;box-shadow:none;cursor:default;transform:none}
+.card.picked{opacity:1;border-color:var(--blue);box-shadow:3px 3px 0 var(--blue)}
+.result{margin-top:14px;padding-top:12px;border-top:2px dashed var(--rule);display:grid;gap:10px}
+.result .narr{margin:0}
+.stamp{justify-self:start;font-family:var(--f-display);font-weight:900;font-size:24px;padding:2px 12px;letter-spacing:.15em;transform:rotate(-6deg);animation:slam .45s cubic-bezier(.2,1.6,.4,1) both;border:3px double currentColor}
+.stamp.bad{color:var(--seal)}
+.stamp.file{color:var(--blue);font-size:19px}
+.stamp.ok{color:var(--ok);font-size:19px}
+@keyframes slam{from{transform:scale(2.4) rotate(-14deg);opacity:0}to{transform:scale(1) rotate(-6deg);opacity:1}}
+.reason{font-size:14.5px;color:var(--seal);font-weight:500;margin:0}
+.odds{font-size:12.5px;color:var(--muted);margin:0}
+.go{justify-self:stretch;margin-top:2px;padding:12px;border:none;border-radius:4px;background:var(--ink);color:var(--sheet);font-weight:700;letter-spacing:.1em}
+
+/* ===== 結局 ===== */
+.over{position:fixed;inset:0;z-index:20;overflow-y:auto;background:var(--over-bg);color:var(--over-fg);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.over.win{background:var(--ground);color:var(--ink)}
+.over .wrap{padding-block:40px 64px;display:grid;gap:4px}
+.over .eyebrow{color:inherit;opacity:.65}
+.big{font-family:var(--f-display);font-weight:900;font-size:clamp(42px,13vw,68px);letter-spacing:.1em;line-height:1.1;margin-top:6px}
+.over:not(.win) .big{color:#ff5a4a;animation:fadein 1.2s ease both}
+@keyframes fadein{from{opacity:0;letter-spacing:.45em}to{opacity:1}}
+.lede{font-size:17px;margin:12px 0 0;max-width:34em}
+.quote{margin:12px 0 0;padding:10px 14px;border-left:4px solid #ff5a4a;font-family:var(--f-doc);font-size:19px;line-height:1.7;background:rgba(255,90,74,.08)}
+.sect{margin-top:28px;border-top:1px solid var(--over-rule);padding-top:16px}
+.over.win .sect{border-top-color:var(--rule)}
+.sect h3{font-size:13px;letter-spacing:.2em;opacity:.7;font-weight:500}
+.ledger{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px;font-family:var(--f-doc);font-size:17.5px;line-height:1.65}
+.ledger li{display:grid;grid-template-columns:4.4em 1fr;gap:8px}
+.ledger time{font-family:var(--f-ui);font-size:12px;opacity:.6;padding-top:4px;font-variant-numeric:tabular-nums}
+.ledger .sub{display:block;font-size:15px;opacity:.7}
+.realbox{margin-top:16px;padding:16px;border:1px solid var(--over-rule);border-radius:4px;background:rgba(255,255,255,.04)}
+.over.win .realbox{border-color:var(--rule);background:var(--sheet)}
+.realtag{display:inline-block;font-family:var(--f-display);font-weight:900;color:#ff5a4a;border:2px solid #ff5a4a;padding:0 8px;letter-spacing:.15em;transform:rotate(-3deg)}
+.over.win .realtag{color:var(--seal);border-color:var(--seal)}
+.realbox p{margin:10px 0 0;font-size:15.5px;line-height:1.8}
+.realbox .res{opacity:.85}
+.realbox .src{color:inherit;opacity:.7}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:12px}
+.facts div{font-size:13px;line-height:1.5;min-width:0}
+.facts b{display:block;font-family:var(--f-display);font-size:30px;font-variant-numeric:tabular-nums;color:var(--seal)}
+.tribute{font-family:var(--f-doc);font-size:18.5px;line-height:1.9;margin-top:12px;max-width:34em}
+.tribute p{margin:0 0 10px}
+.ending-name{font-family:var(--f-display);font-weight:900;font-size:24px;color:var(--seal);margin-top:4px}
+.hotline{font-size:15px;margin-top:10px}
+.hotline b{font-size:20px;font-variant-numeric:tabular-nums;user-select:all}
+.row{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.row button{flex:1 1 150px;padding:12px;border-radius:6px;font-weight:700;letter-spacing:.08em}
+.ghost{background:transparent;border:1.5px solid currentColor}
+.fade-in{animation:rise .3s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:420px){.decide{width:60px;height:60px;font-size:17px;top:58px;right:12px}.clock{font-size:24px}.hud-r{gap:8px}}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="startWrap"><main id="main"></main></div>
+
+<div id="game" hidden>
+  <div class="hud">
+    <div class="hud-top">
+      <div class="hud-l"><div class="who" id="who">第 1 天</div><div class="clock" id="clock">08:00</div></div>
+      <div class="hud-r">
+        <div class="ctr">擬存查<b id="skips">0</b></div>
+        <div class="ctr">桌上公文<b id="pile">0</b></div>
+        <button class="hbtn" id="pauseBtn" aria-label="暫停">暫停</button>
+      </div>
+    </div>
+    <div class="flow" id="flow"></div>
+    <div class="goalrow"><div class="goal" id="goal"></div><div class="sbtns"><button class="hbtn" id="sndBtn">聲音 開</button><button class="hbtn" id="voBtn">朗讀 關</button></div></div>
+  </div>
+  <div id="stage">
+    <canvas id="cv" aria-label="辦公室地圖"></canvas>
+    <div id="toast"></div>
+    <div id="banner"></div>
+    <div class="ctlhint" id="ctlhint">按住畫面拖曳移動 · 鍵盤用方向鍵</div>
+    <div id="pauseMsg" hidden>暫停中</div>
+    <div id="shade" hidden></div>
+    <div id="modal" hidden></div>
+  </div>
+</div>
+<div id="over" class="over" hidden></div>
+
+<script>
+/* ============ 新聞來源 ============ */
+const SRC={
+  pot1:{t:'三立新聞網',u:'https://tw.news.yahoo.com/%E7%82%BA32%E5%85%83%E9%9B%BB%E9%8D%8B%E9%80%81%E7%B5%A6%E6%8B%BE%E8%8D%92%E5%A9%A6%E8%A2%AB%E5%88%A4%E5%88%91-%E6%B3%95%E5%8B%99%E9%83%A8-%E5%B0%8A%E9%87%8D%E5%88%A4%E6%B1%BA-090000549.html'},
+  pot2:{t:'Yahoo 新聞',u:'https://tw.news.yahoo.com/%E6%B8%85%E6%BD%94%E9%9A%8A%E5%93%A1%E8%B4%88%E6%8B%BE%E8%8D%92%E5%A9%A6%E5%9B%9E%E6%94%B6%E9%9B%BB%E9%8D%8B%E9%81%AD%E8%B2%AA%E6%B1%A1%E7%BD%AA%E8%B5%B7%E8%A8%B4-%E4%B8%80%E5%AF%A9%E5%88%A4%E5%88%913%E6%9C%88%E7%B7%A9%E5%88%912%E5%B9%B4-030953568.html'},
+  adv:{t:'自由時報',u:'https://news.ltn.com.tw/news/society/paper/1765520'},
+  ptt1:{t:'TVBS',u:'https://news.tvbs.com.tw/politics/1819766'},
+  ptt2:{t:'中央社',u:'https://www.cna.com.tw/news/aloc/202206140173.aspx'},
+  line:{t:'公視新聞',u:'https://news.pts.org.tw/article/547982'},
+  cons:{t:'中央社',u:'https://www.cna.com.tw/news/asoc/202405240207.aspx'},
+  bat1:{t:'風傳媒',u:'https://www.storm.mg/lifestyle/11136471'},
+  bat2:{t:'自由時報',u:'https://news.ltn.com.tw/news/Taichung/breakingnews/5452987'},
+  grade1:{t:'風傳媒',u:'https://www.storm.mg/article/11131548'},
+  grade2:{t:'聯合報',u:'https://udn.com/news/story/6656/9391605'},
+  kanjia:{t:'公視新聞',u:'https://news.pts.org.tw/article/490532'},
+  quit:{t:'太報（LINE TODAY）',u:'https://today.line.me/tw/v3/article/nX88GNy'},
+  ot:{t:'臺中市政府人事處',u:'https://www.personnel.taichung.gov.tw/media/1168194/%E4%BA%94-%E5%8A%A0%E7%8F%AD%E8%B2%BB%E7%94%B3%E8%AB%8B%E8%88%87%E6%A0%B8%E7%99%BC.doc'},
+  bully:{t:'公視新聞網',u:'https://news.pts.org.tw/hotTopic/434'}
+};
+
+/* ============ 真實案例卡 ============
+   rep:1 的選項 = 真實發生過的那個選擇 */
+const CASES=[
+ {id:'pot',tag:'F',ti:'一個電鍋',tx:'今天你支援清潔隊清運。回收車上有一個還能用的舊電鍋。路口撿回收的阿嬤，上週說她的電鍋壞了。',
+  ch:[{l:'把電鍋送給阿嬤',rep:1,z:'公務員將回收物私自轉送他人，涉貪污。',o:'你被起訴了'},{l:'照規定載回回收場',skip:1,r:'電鍋被壓扁了。阿嬤繼續用壞掉的那個。'}],
+  real:'2024 年 7 月，台北市一位清潔隊員把回收車上殘值 32 元的舊電鍋，送給一位拾荒婦人，被依《貪污治罪條例》起訴。',
+  res:'一審判他有期徒刑 3 個月、緩刑 2 年、褫奪公權 1 年。清潔隊要他把電鍋要回來，他不好意思開口，自己買了一個新電鍋送她。',src:['pot1','pot2']},
+ {id:'adv',tag:'D',ti:'醫藥費',tx:'你承辦一件國賠案：公車候車亭倒塌，砸傷一位民眾。國賠審議要好幾個月，他說他付不出醫藥費。',
+  ch:[{l:'自己先借錢給他付醫藥費',rep:1,z:'承辦人與國賠請求人有金錢往來，涉收賄。',o:'廉政署來了'},{l:'請他等國賠審議結果',skip:1,r:'他在醫院等了三個月。'}],
+  real:'台北市交通局一位科長承辦候車亭倒塌的國賠案，自掏腰包先替傷者墊付醫藥費。傷者領到賠償金之後，把錢還給他。',
+  res:'廉政署看到帳戶金流，懷疑他收賄，展開調查。檢方查明那是借款，處分不起訴。',src:['adv']},
+ {id:'ptt',tag:'D',ti:'網路留言',tx:'下午，你看到網路上有人罵你們局處的政策，其中有一點說錯了。你打了一段解釋。',
+  ch:[{l:'按下送出',rep:1,z:'公務員上班時間上網留言。',o:'你被點名了'},{l:'刪掉，不留了',skip:1,r:'網路上只剩一種說法。'}],
+  real:'2022 年，台北市議員在議會委員會上，要求交通局一位科長當眾唸出自己在 PTT 上的留言，質疑他上班時間上網。',
+  res:'市長批評這是羞辱公務員；議員說會議全程直播，沒有人羞辱他。副市長後來表示，未來不讓基層公務員去議會備詢。',src:['ptt1','ptt2']},
+ {id:'line',tag:'L',ti:'團購',tx:'同事團購的乾洗手到了，請你幫忙轉貼到另一個 LINE 群組。',
+  ch:[{l:'順手轉貼',rep:1,z:'公務員上班時間在群組賣東西。',o:'你被扣考績了'},{l:'說等下班再轉',skip:1,r:'同事說你很難相處。'}],
+  real:'臺南市家防中心一位社工督導，被爆料上班時間在 LINE 群組轉貼賣東西的訊息，從食品到乾洗手、額溫槍都有。',
+  res:'社會局沒有查到她販售，但認定在公務時間轉傳這類訊息不當，扣年度考績 0.5 分，移送政風。她說，她只是隨手轉發。',src:['line']},
+ {id:'insult',tag:'C',ti:'米蟲',tx:'民眾在櫃檯拍桌：「你們這些米蟲！」他的案子還沒辦好。後面排到 27 號。',
+  ch:[{l:'報警，告他侮辱公務員',rep:1,z:'公務員對民眾提告，打壓人民言論。',o:'你上新聞了'},{l:'低頭道歉，繼續辦',skip:1,r:'他罵完，辦好，走了。27 號多等了 20 分鐘。'}],
+  real:'2024 年 5 月，憲法法庭 113 年憲判字第 5 號判決：刑法「當場侮辱公務員罪」要成立，必須是基於妨害公務的目的，而且足以影響公務執行。',
+  res:'同一號判決宣告「侮辱公務員執行職務罪」違憲，即日失效。在櫃檯被罵一句，多半不構成犯罪。',src:['cons']},
+ {id:'bat',tag:'C',ti:'我要見市長',tx:'一位男子走到櫃檯前：「我要見市長。」他把手伸進背包裡。',
+  ch:[{l:'請他先抽號碼牌',rep:1,z:'',o:'櫃檯被砸了'},{l:'按下警鈴',skip:1,r:'警衛跑來了。他拿出來的是身分證。他說要陳情你把他當犯人。'}],
+  real:'2026 年 5 月 28 日下午，台中市政府聯合服務中心，一名男子說要見市長，拿出球棒砸毀壓克力隔板、電腦螢幕和印表機。',
+  res:'警方到場把他帶走，沒有人受傷。第一線的承辦人，每天坐在那片壓克力後面。',src:['bat1','bat2']},
+ {id:'grade',tag:'M',ti:'考績',tx:'年終考績會前，科長找你：「你今年表現很好。不過你是新人。」',
+  ch:[{l:'爭取甲等',rep:1,z:'新人不懂倫理，跟資深同事搶考績。',o:'你被記住了'},{l:'點頭：「我懂。」',skip:1,r:'你今年乙等，獎金半個月。明年輪到別人。'}],
+  real:'公務機關行之有年的慣例：考績甲等比率「以不超過 75% 為原則」。法規沒有明定，但至少四分之一的人會是乙等，於是有了「新人先吃乙、輪流吃乙」。',
+  res:'2026 年 5 月，考試院通過草案，把甲乙丙丁改成「優秀、良好、未達良好」三等。公務員團體說，不管名稱怎麼改，決定權還是在長官手上。',src:['grade1','grade2']},
+ {id:'kanjia',tag:'N',ti:'粉專',tx:'23:10。你是單位的臉書小編。有人在粉專留言罵首長，底下已經有 40 則回覆。',
+  ch:[{l:'開電腦回覆，順便把明天的貼文寫好',rep:1,z:'',o:'你倒下了'},{l:'關機睡覺',skip:1,r:'早上留言串有 300 則。科長問你昨晚為什麼沒處理。'}],
+  real:'新北市金山區公所一位約聘人員，同時是媒體組長、臉書小編和媒體聯絡人，家屬說他幾乎不分日夜工作。市府民政局說，他每月加班約 70 到 80 小時。他猝死了。',
+  res:'新北市法制局與國賠會認為他是「自願加班」，不是主管強迫，國賠不成立。監察院做了過勞的調查報告。',src:['kanjia']}
+];
+
+/* ============ 常見情境卡 ============
+   [文字, 被陳情機率, 陳情內容]
+   [文字, 'skip', 結果, 機率, 陳情內容]  → 擬存查（不做也可能被陳情）
+   [文字, 'safe', 結果, 公文增加]        → 做了，沒事，但事情變多 */
+function SC(id,tag,ti,tx,ch){return {id,kind:'s',tag,ti,tx,ch:ch.map(a=>
+  a[1]==='skip'?{l:a[0],skip:1,r:a[2],p:a[3]||0,z:a[4]||'公務員推諉卸責。'}:
+  a[1]==='safe'?{l:a[0],safe:1,r:a[2],pile:a[3]||0}:{l:a[0],p:a[1],z:a[2]})}}
+const SCENES=[
+/* 早上・座位 */
+SC('g1','G','錯字','桌上一份公文，限今天辦結。主旨有一個錯字，但已經跑完三個單位的會簽。',[['自己把字改掉',.15,'承辦人擅自塗改已會簽公文。'],['錯字就錯字，直接送出',.35,'公文錯字，議員質詢：「連字都不會寫」。'],['退回去重跑會簽','skip','三個單位要再簽一次。它下週才會回來。',.08,'公文延宕，逾期未辦結。']]),
+SC('g2','G','惟與但','科長把你的簽稿改了：「惟」改成「但」。上一版，他把「但」改成「惟」。',[['照改，再送一次','safe','你送了第四次。科長說下次注意。'],['拿上一版給科長看',.25,'部屬頂撞長官，不服指導。'],['先放著，等科長心情好再送','skip','它在你桌上又待了一天。']]),
+SC('g3','G','調查表','上級機關要你中午前填一份調查表。內容和上週那份一樣，只是欄位順序不同。',[['重新填一份','safe','你填完了。下週還有一份。',1],['把上週那份附上去',.25,'未依規定格式填報，影響統計作業。'],['先不填','skip','中午它變成「催辦」。下午變成「再催辦」。',.2,'逾期未填報，影響全市統計。']]),
+SC('g4','G','十二頁','一封手寫陳情信，十二頁正反面。重點在第九頁：隔壁的狗。',[['逐條回覆十二頁',.1,'回覆內容未針對訴求，敷衍了事。'],['打電話跟陳情人說明',.18,'公務員打電話騷擾陳情人。'],['轉給動保處','skip','動保處說這是噪音，轉給環保局。環保局轉回來給你。',.12,'機關互踢皮球。']]),
+SC('g5','G','首長信箱','首長信箱轉來一封信，副本寄給了七位議員。',[['照規定格式回覆',.12,'回覆制式化，毫無同理心。'],['寫一封有溫度的回信',.15,'回覆未經核稿，代表機關發言不當。'],['等長官指示','skip','七位議員裡，有三位打來問進度。',.12,'延宕回覆，漠視民意。']]),
+SC('g6','G','卡紙','印表機卡紙了。你的公文印到一半，後面排了九份。',[['自己拆開修',.08,'損壞公物，要求賠償。'],['借隔壁科的印表機',.06,'未經同意使用他科設備。'],['報修','skip','廠商說下週二來。']]),
+/* 櫃檯 */
+SC('c1','C','少一張','民眾少帶一份戶籍謄本。他說他住很遠，今天是請假來的。',[['先收件，讓他之後補',.25,'未依規定收件，涉圖利特定人。'],['幫他線上調閱',.15,'未經授權調閱個人資料。'],['請他補齊再來','skip','他請了第二次假。',.15,'承辦人刁難民眾，態度官僚。']]),
+SC('c2','C','委託書','一位阿伯拿著女兒的證件，要幫她辦。沒有委託書。',[['看他年紀大，先辦',.35,'未經本人授權受理，個資外洩。'],['打電話給他女兒確認',.12,'公務員私自聯絡民眾家屬。'],['請他帶委託書再來','skip','他罵了五分鐘，說要找議員。',.18,'公務員不懂變通。']]),
+SC('c3','C','認識區長','一位民眾說他認識區長，要先辦。',[['讓他先辦',.4,'公所特權插隊。'],['請他抽號碼牌',.15,'公務員態度傲慢。'],['請他去找區長','skip','他真的去找了。區長打電話給你。',.1,'公務員把民眾推給長官。']]),
+SC('c4','C','錄影','民眾舉起手機：「我錄下來，讓大家看看公務員的態度。」',[['請他不要拍',.3,'公務員阻止民眾監督。'],['微笑繼續辦','safe','影片上傳了。留言說你笑得很假。'],['暫停服務，請主管來','skip','主管來了。影片更長了。',.2,'公務員拒絕服務。']]),
+SC('c5','C','線上申辦','一位奶奶不會用線上申辦系統。這套系統是上級規定一定要用的。',[['用她的帳號幫她操作',.22,'公務員代為操作民眾帳號，涉個資。'],['一步一步教她',.12,'服務太慢，後面民眾等候過久。'],['請她回家找孫子幫忙','skip','她明天會再來一次。',.08,'公所不協助數位弱勢。']]),
+SC('c6','C','鳳梨酥','辦完事，民眾留下一盒鳳梨酥：「一點心意啦。」',[['收下，分給同事',.5,'公務員收受餽贈。'],['當場婉拒',.08,'公務員不近人情，讓民眾難堪。'],['登記，送政風室','safe','你填了三張表。鳳梨酥過期了。']]),
+SC('c7','C','他說得對','民眾說：「這條規定很爛，你自己也知道。」他說得對。',[['點頭：「我也覺得。」',.35,'公務員公開批評政策。'],['幫他寫修法建議',.12,'公務員超出職權。'],['把規定唸一次','skip','他說你像機器人。',.12,'服務態度冷漠。']]),
+SC('c8','C','系統當機','系統當機。櫃檯前排了十二個人。',[['手寫收件，晚點補登',.2,'未依標準作業程序收件。'],['向排隊民眾說明',.15,'公務員推卸責任給系統。'],['等系統恢復','skip','系統一小時後恢復。十二個人走了五個。',.2,'系統當機，服務停擺。']]),
+SC('c9','C','過號','民眾說他剛剛去上廁所，過號了。',[['讓他直接辦',.2,'不公平，其他民眾陳情。'],['請他重抽','skip','他重抽了。前面還有 23 號。',.15,'公務員死板。']]),
+SC('c10','C','台語','一位阿嬤講台語，有幾個詞你聽不懂。',[['改用國語慢慢講',.1,'公務員不尊重本土語言。'],['請會台語的同事來',.06,'服務流程冗長。'],['點頭裝懂','skip','你填錯了一欄。她明天要再來一次。']]),
+/* 會議・長官 */
+SC('m1','M','臨時交辦','科長：「這個下班前弄好。」那是另一科的業務。',[['接下來','safe','另一科的人準時下班了。',3],['說明這不是本科業務',.25,'部屬推諉，不服從指揮。'],['說「好」，然後先放著','skip','科長 17:20 來問進度。',.2,'承辦人陽奉陰違。']]),
+SC('m2','M','會議紀錄','會議開了兩小時，沒有結論。科長要你寫一份「有結論」的紀錄。',[['照實寫：無結論',.3,'紀錄失當，長官不滿。'],['寫一個像結論的結論',.15,'會議紀錄與事實不符。'],['寫「持續研議」','skip','這件事下週會再開一次會。']]),
+SC('m3','M','滿意度','長官說，今年的民眾滿意度要從 92 分提高到 95 分。',[['說明樣本只有 30 份',.2,'消極抵制政策目標。'],['建議改問卷題目',.25,'操弄滿意度數據。'],['答應','safe','你不知道要怎麼做到。',1]]),
+SC('m4','M','是誰承辦的','首長在會上問：「這是誰承辦的？」是你，也不完全是你。',[['舉手',.3,'承辦人疏失，記申誡一次。'],['看向科長','skip','科長看向了你。',.15,'承辦人推卸責任。']]),
+SC('m5','M','新政策','上級宣布新政策，下週一上路。施行細則還沒出來。',[['先照自己的理解辦',.3,'未依規定辦理，各區作法不一。'],['問其他區怎麼辦',.12,'照抄他機關作法，未考量地方特性。'],['發函請上級釋示','skip','上級回函：「請本於權責辦理」。',.1,'基層無所適從，民眾跑了三趟。']]),
+SC('m6','M','簡報','首長明早要看簡報。科長說：「今晚就要。」',[['今晚做完','safe','你做到 23:00。首長隔天改看別的。',2],['說明明早也來得及',.2,'部屬不配合，態度消極。']]),
+/* 走廊・民眾 */
+SC('bc1','Bc','問路','民眾在走廊攔住你：「請問土地的要去哪裡辦？」',[['帶他過去',.05,'承辦人擅離座位，民眾久候。'],['指個方向','safe','他走錯了，又回來問一次。'],['說「不是我的業務」','skip','他記下了你識別證上的名字。',.15,'公務員推諉卸責。']]),
+SC('bc2','Bc','我繳稅的','民眾說：「我繳稅養你的，你走那麼慢？」',[['解釋你也有繳稅',.3,'公務員與民眾爭辯。'],['加快腳步','safe','你小跑步。被拍到了。'],['不回應','skip','他說你不理人。',.15,'公務員態度冷漠。']]),
+SC('bc3','Bc','問進度','民眾問：「我上個月的案子怎麼樣了？」不是你承辦的。',[['幫他查一下',.18,'越權查詢他人案件。'],['帶他去找承辦人',.06,'洩漏他人承辦案件資訊。'],['請他打電話問承辦人','skip','承辦人今天請假。',.12,'公務員推諉。']]),
+SC('bc4','Bc','好急','民眾問廁所在哪裡。他看起來很急。',[['帶他去','safe','他到了。'],['借他用員工廁所',.15,'員工廁所開放民眾使用，衛生堪慮。']]),
+SC('bc5','Bc','里長','里長拍你的肩：「那個路燈的事，拜託一下啦。」',[['記下來，回去立案',.06,'受理程序不透明。'],['說會「盡快」',.2,'答應了卻沒做，里長陳情。'],['請他打 1999','skip','他打了。案子轉了一圈，回到你手上。',.1,'公務員推給 1999。']]),
+/* 走廊・長官 */
+SC('bm1','Bm','電梯','電梯裡只有你和處長。處長問：「最近忙嗎？」',[['說實話：很忙',.15,'抱怨連連，抗壓性不足。'],['說「還好」','safe','處長說：「那這個案子給你。」',2]]),
+SC('bm2','Bm','三十秒','科長叫住你：「我剛 LINE 你，你怎麼沒回？」訊息是三十秒前傳的。',[['道歉',.04,'反應太慢。'],['說你剛剛在走路','skip','科長說：「走路不能看手機嗎？」',.12,'不服管教。']]),
+SC('bm3','Bm','代理','科長：「下週我休假，你代理。」你沒有代理權限。',[['接下來','safe','你多了一顆章，和所有的責任。',1],['說你沒有權限',.2,'部屬推諉。']]),
+SC('bm4','Bm','十份','科長：「幫我印一下，雙面，裝訂，十份。」他手上拿的是他小孩的作業。',[['印',.35,'公物私用。'],['婉拒','skip','科長說：「這麼小的事。」年底你知道它有多大。',.2,'不服從長官。']]),
+/* 議員助理 */
+SC('bp1','Bp','議員很關心','議員助理攔住你：「這個案子，議員很關心。」',[['說會優先處理',.35,'承辦人配合關說。'],['說明依法辦理，不會特別處理',.18,'承辦人態度傲慢，議員要質詢。'],['請他走正式陳情管道','skip','他說：「好，那我們議會見。」',.12,'公務員擺官架子。']]),
+SC('bp2','Bp','先私下給','議員助理要你「先私下給一份」還沒公開的資料。',[['給他',.6,'洩漏公務機密。'],['請議員辦公室正式發函','skip','他走了。議員的質詢稿多了一段。',.15,'阻撓議員監督。']]),
+SC('bp3','Bp','我們選民','議員助理說：「這張罰單可以不要開嗎？是我們選民。」',[['撤銷罰單',.6,'圖利特定人，涉關說。'],['說罰單已經開了，可以申訴','skip','議員在質詢台上說你「執法過當」。',.18,'公務員執法過當。']]),
+/* 午休 */
+SC('l1','L','關燈','12:30 辦公室關燈午休。窗外有民眾在拍照。',[['繼續睡',.35,'公務員上班時間睡覺。'],['拉上窗簾',.15,'公所門窗緊閉，拒民眾於門外。'],['起來開燈服務','safe','你沒睡到。下午開會你一直點頭。']]),
+SC('l2','L','便當','你在吃便當，民眾走進來要辦事。',[['放下便當幫他辦',.05,'公務員邊嚼邊服務，觀感不佳。'],['請他 13:30 再來',.35,'中午拒絕服務。'],['讓他等你吃完','skip','他在旁邊看你吃完。',.25,'公務員吃飯比民眾重要。']]),
+SC('l3','L','手搖飲','同事在揪團訂手搖飲，外送員會送到辦公室門口。',[['訂一杯',.22,'上班時間訂飲料，外送員進出辦公室。'],['不訂','safe','同事說你最近怪怪的。']]),
+SC('l4','L','熱水','茶水間的熱水瓶是同事集資買的。一位民眾也想裝一杯熱水。',[['讓他裝',.12,'公物私用，熱水外流。'],['說是員工自費的','skip','他說公所連熱水都不給。',.2,'公所冷漠。']]),
+/* 議會 */
+SC('p1','P','三個月','議員問：「這案子為什麼拖了三個月？」因為他的助理每週來關切一次，每次要改一個地方。',[['照實說',.7,'公務員頂撞議員，藐視議會。'],['請科長回答','safe','科長答了。回辦公室後，他看了你一眼。'],['鞠躬：「我們會儘速研議。」','skip','議員：「研議研議，你們只會研議！」',.1,'敷衍議會。']]),
+SC('p2','P','十年資料','議員要求三天內提供近十年所有相關資料，有些涉及個資。',[['全部給',.4,'洩漏個人資料。'],['只給公開資料',.25,'選擇性提供資料，阻撓監督。'],['加班整理，遮蔽個資','safe','你遮了三天。議員說：「塗塗抹抹，有什麼見不得人？」',3]]),
+SC('p3','P','直播','議員開直播質詢你，畫面右上角寫著「抓到米蟲」。',[['好好解釋',.25,'官員狡辯，影片十萬次觀看。'],['只說「依法辦理」','skip','留言說你是機器人。',.15,'公務員一問三不知。']]),
+SC('p4','P','你的名字','議員：「這個承辦人叫什麼名字？」',[['站起來報出名字',.3,'承辦人被點名，下週還要再來備詢。'],['看向長官','skip','長官報了你的名字。']]),
+/* 外勤 */
+SC('f1','F','違建','會勘一處違建。屋主八十歲，說他在這裡住了四十年。',[['依法查報',.3,'公務員欺壓弱勢老人。'],['請社會局一起來',.1,'公務員帶社工上門，羞辱屋主。'],['寫「待查」','skip','鄰居陳情你包庇違建。',.25,'包庇違建。']]),
+SC('f2','F','坑洞','路上一個坑洞，養護單位是另一個機關。剛剛有機車差點摔倒。',[['自己先叫廠商補',.3,'未經採購程序，越權發包。'],['拿三角錐先擋',.08,'三角錐擋路，民眾陳情。'],['發函通知權責機關','skip','公文要跑一週。今晚會下雨。',.15,'機關互踢皮球，民眾摔車。']]),
+SC('f3','F','加油卡','公務車快沒油了。加油卡在另一位同事身上。',[['自己先墊錢加',.15,'公務費用核銷不實。'],['等同事送卡過來','skip','會勘遲到半小時。',.2,'公務員遲到，民眾久候。']]),
+SC('f4','F','斷枝','颱風前，一根斷枝壓在私人車上。',[['先把樹枝移開',.2,'移動時刮傷車子，車主求償。'],['拍照通報','skip','車主說公所看到了也不幫忙。',.15,'見死不救。']]),
+SC('f5','F','拍照存證','會勘要拍照。旁邊的民眾說：「你拍我家幹嘛？」',[['解釋是公務需要',.15,'公務員侵犯隱私。'],['不拍了','skip','回去之後，主管問你證據在哪。',.12,'會勘紀錄不實。']]),
+/* 下午・公文 */
+SC('d1','D','差 300 元','一筆補助，申請人收入超過標準 300 元。他是單親，三個小孩。',[['核准',.4,'不符資格卻核准，涉圖利。'],['簽請長官核示',.1,'長官批了「如擬」。擬的是你。'],['駁回','skip','他說下個月會再申請。',.15,'公務員冷血，不知民間疾苦。']]),
+SC('d2','D','最便宜的那家','一個五萬元的採購，三家比價。最便宜的那家，上次做得很爛。',[['選第二便宜的',.35,'未選最低價，涉圖利特定廠商。'],['選最便宜的','safe','它又做爛了。驗收的也是你。',1]]),
+SC('d3','D','發票抬頭','一張發票的抬頭少了一個字。金額 480 元。',[['直接核銷',.3,'審計糾正：憑證不符規定。'],['請廠商重開','skip','廠商說你很麻煩，下次不接你們的案子。']]),
+SC('d4','D','查地址','一位自稱家屬的人打電話來，要查某人的地址。他說是急事。',[['告訴他',.85,'洩漏個人資料。'],['請他報警處理','skip','他說你不幫忙找失聯的家人。',.15,'公務員冷血。']]),
+SC('d5','D','歉難同意','陳情案到期了。依法只能回覆「歉難同意」。',[['寫得溫柔一點，多解釋幾段',.12,'回覆冗長，避重就輕。'],['照範本回','skip','陳情人收到一封四個字的拒絕。',.2,'制式回覆，漠視民意。']]),
+SC('d6','D','逾期警示','公文系統的逾期警示亮了：你有 3 件快到期。',[['今天全部趕完',.12,'公文品質粗糙，遭到退件。'],['先辦最急的一件','safe','另外兩件明天會變紅色。',2]]),
+/* 下班 */
+SC('z1','Z','17:29','下班前一分鐘，一位民眾衝進來，要辦一件要四十分鐘的案子。',[['留下來辦','safe','你辦到 18:10。這個月的加班費，已經報滿 20 小時。'],['請他明天早上再來',.3,'公務員準時下班，不顧民眾。']]),
+SC('z2','Z','科長還沒走','你要打下班卡了。科長還在座位上。',[['先走',.15,'新人不懂職場倫理。'],['等他走','safe','他 20:10 才走。你也是。']]),
+SC('z3','Z','門口的記者','大門口有記者：「請問你們對今天那件事有什麼回應？」',[['說出你真正的想法',.9,'公務員未經授權對外發言。'],['說：「請洽新聞聯絡人。」','skip','新聞標題：市府拒絕回應。']]),
+/* 下班後 */
+SC('n1','N','群組','22:47，科長在群組：「明天早上要的資料，大家今晚看一下。」',[['回「收到」，開始做','safe','你做到 01:30。'],['已讀不回',.2,'同仁不配合。'],['不點開','skip','早上群組有 46 則訊息。',.1,'未即時回應長官。']]),
+SC('n2','N','陌生訊息','23:05，你的私人 LINE 收到陌生訊息：「請問是公所的承辦人嗎？我的案子……」',[['回覆他',.25,'公務員私下與民眾聯繫。'],['不回','skip','他說你已讀不回，明天要去陳情。',.2,'公務員不回訊息。']]),
+SC('n3','N2','進駐','03:12，電話響了。災害應變中心要你一小時內進駐。',[['出門','safe','你在應變中心待到天亮。08:00 照常上班。'],['說你明天還要上班',.5,'防災人員未依規定進駐。']]),
+SC('n4','N2','淹水','04:40，里長打電話：「我們這裡淹水了，你們公所的人呢？」',[['出門去看','safe','你在水裡站到天亮。08:00 照常上班。'],['說你已經在應變中心',.15,'公所人員推託。']]),
+/* 1999 */
+SC('h1','H','風水（1999）','1999 轉來陳情：「公所門口的樹太大，影響風水。」',[['派人修剪',.25,'公所濫砍行道樹，環團陳情。'],['回覆「已列入評估」','skip','他再陳情一次。',.1,'敷衍了事。']]),
+SC('h2','H','泡茶（1999）','1999 轉來陳情：「公務員上班都在泡茶。」附了一張照片：是你，在喝水。',[['回覆：「那是白開水。」',.25,'公務員回覆態度輕浮。'],['用制式範本回覆','skip','他說你沒有回答問題。',.15,'回覆敷衍。']]),
+SC('h3','H','第 37 次（1999）','同一位民眾，這個月第 37 次陳情，內容和前 36 次一樣。',[['認真回第 37 次','safe','你寫完了。第 38 次已經在路上。',1],['依規定不再處理重複陳情',.3,'公務員拒絕處理陳情。']]),
+SC('h4','H','最後一天（1999）','1999 轉來陳情，限期回覆。今天就是最後一天，上一個單位剛剛才轉給你。',[['今天趕出來',.15,'回覆內容草率。'],['申請展延','skip','展延要先上簽。上簽要三天。',.25,'逾期未回覆。']]),
+SC('h5','H','冷氣水（1999）','1999 轉來陳情：鄰居的冷氣滴水，滴到他的機車。',[['去現場看',.12,'公權力介入私人糾紛。'],['回覆屬私權糾紛，請循調解','skip','他說公所什麼都不管。',.2,'公所什麼都不管。']])
+];
+const LATE={id:'late',kind:'s',ti:'遲到',tx:'時間到了，你還在路上。',ch:[{l:'跑過去，先道歉',p:.15,z:'承辦人遲到，民眾久候。'},{l:'若無其事地走進去',p:.3,z:'公務員上班遲到，態度輕浮。'}]};
+
+/* ============ 聲音與朗讀 ============ */
+const AU=(()=>{
+  let ctx=null,on=true;
+  try{on=localStorage.getItem('gwy_snd')!=='0'}catch(e){}
+  function init(){if(!ctx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;try{ctx=new AC()}catch(e){return}}if(ctx.state==='suspended')ctx.resume()}
+  function tone(f,t,d,type,vol){if(!ctx||!on)return null;const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+d+.05);return o}
+  function noise(t,d,vol,f1,f2){if(!ctx||!on)return;const n=Math.floor(ctx.sampleRate*d),b=ctx.createBuffer(1,n,ctx.sampleRate),a=b.getChannelData(0);for(let i=0;i<n;i++)a[i]=Math.random()*2-1;
+    const s=ctx.createBufferSource();s.buffer=b;const fl=ctx.createBiquadFilter();fl.type='bandpass';fl.frequency.setValueAtTime(f1,t);fl.frequency.exponentialRampToValueAtTime(f2,t+d);
+    const g=ctx.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(fl);fl.connect(g);g.connect(ctx.destination);s.start(t);s.stop(t+d)}
+  const now=()=>ctx?ctx.currentTime+.02:0;
+  return {init,
+    get on(){return on},
+    setOn(v){on=v;try{localStorage.setItem('gwy_snd',v?'1':'0')}catch(e){}},
+    pause(v){if(ctx){try{v?ctx.suspend():ctx.resume()}catch(e){}}},
+    dingdong(){if(!ctx)return;const t=now();[[659.3,0],[523.3,.42]].forEach(([f,d])=>{tone(f,t+d,1.3,'sine',.2);tone(f*2,t+d,.6,'sine',.05)})},
+    stamp(){if(!ctx)return;const t=now();noise(t,.12,.6,1200,300);const o=tone(130,t,.35,'sine',.5);if(o)o.frequency.exponentialRampToValueAtTime(45,t+.3)},
+    file(){if(!ctx)return;const t=now();noise(t,.18,.25,3000,1200);noise(t+.12,.14,.18,2500,900)},
+    ok(){if(!ctx)return;const t=now();tone(784,t,.25,'triangle',.12);tone(1046.5,t+.1,.4,'triangle',.12)},
+    whoosh(){if(!ctx)return;noise(now(),.45,.3,400,2400)},
+    click(){if(!ctx)return;noise(now(),.05,.15,2500,1500)},
+    phone(){if(!ctx)return;const t=now();for(let i=0;i<6;i++){tone(1350,t+i*.09,.07,'square',.05)}},
+    doom(){if(!ctx)return;const t=now();tone(55,t,2.6,'sawtooth',.1);tone(58.3,t,2.6,'sawtooth',.07);tone(110,t,1,'sine',.14)},
+    fanfare(){if(!ctx)return;const t=now();[523.3,659.3,784,1046.5].forEach((f,i)=>tone(f,t+i*.13,i===3?.9:.25,'square',.06))}
+  };
+})();
+const VO=(()=>{
+  const ok=typeof speechSynthesis!=='undefined'&&typeof SpeechSynthesisUtterance!=='undefined';
+  let voice=null,auto=false;
+  try{auto=localStorage.getItem('gwy_vo')==='1'}catch(e){}
+  function pickVoice(){if(!ok)return;const vs=speechSynthesis.getVoices();voice=vs.find(v=>/zh[-_]TW/i.test(v.lang))||vs.find(v=>/zh/i.test(v.lang))||null}
+  if(ok){pickVoice();try{speechSynthesis.addEventListener('voiceschanged',pickVoice)}catch(e){}}
+  function speak(text){if(!ok)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=voice?voice.lang:'zh-TW';if(voice)u.voice=voice;u.rate=1.05;speechSynthesis.speak(u)}catch(e){}}
+  function stop(){if(ok)try{speechSynthesis.cancel()}catch(e){}}
+  return {ok,speak,stop,get auto(){return auto},setAuto(v){auto=v;try{localStorage.setItem('gwy_vo',v?'1':'0')}catch(e){}if(!v)stop()}};
+})();
+const KEYS='甲乙丙丁';
+const cardSpeech=c=>`${c.ti}。${c.tx}`+c.ch.map((x,i)=>`。${KEYS[i]}案，${x.l}`).join('');
+
+/* ============ 工具 ============ */
+const R=Math.random;
+const rint=(a,b)=>a+Math.floor(R()*(b-a+1));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const pick=a=>a[Math.floor(R()*a.length)];
+const pad=n=>String(n).padStart(2,'0');
+const fmt=t=>{t=((Math.round(t)%1440)+1440)%1440;return pad(Math.floor(t/60))+':'+pad(t%60)};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const srcLinks=keys=>keys.map(k=>`<a href="${SRC[k].u}" target="_blank" rel="noopener">${SRC[k].t}</a>`).join('、');
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,String(v))}catch(e){return null}}
+
+/* ============ 牌庫 ============ */
+const ALL=CASES.map(c=>Object.assign({kind:'r'},c)).concat(SCENES);
+function drawCard(tag){
+  let pool=ALL.filter(c=>c.tag===tag&&!S.used.has(c.id));
+  if(!pool.length)pool=ALL.filter(c=>(c.tag==='Bc'||c.tag==='H'||c.tag==='C')&&!S.used.has(c.id));
+  if(!pool.length)pool=ALL.filter(c=>c.tag===tag);
+  const r=pool.filter(c=>c.kind==='r'),s=pool.filter(c=>c.kind==='s');
+  return (r.length&&(R()<.32||!s.length))?pick(r):pick(s);
+}
+
+/* ============ 辦公室地圖 ============ */
+const TS=32,MW=34,MH=26;
+/* 0 辦公區 1 牆 2 戶外 3 房間 4 盆栽/樹 5 大門 6 辦公桌 7 大廳 8 櫃檯 9 椅子 10 車 */
+const ROOMS=[
+ {id:'boss',n:'科長室',x:1,y:1,w:5,h:5,c:'#7d6656',ax:3.5,ay:6.5},
+ {id:'mtg',n:'會議室',x:7,y:1,w:7,h:5,c:'#5f7190',ax:10.5,ay:6.5},
+ {id:'file',n:'檔案室',x:15,y:1,w:4,h:5,c:'#8c8662',ax:16.5,ay:6.5},
+ {id:'tea',n:'茶水間',x:20,y:1,w:5,h:5,c:'#5f8f84',ax:22.5,ay:6.5},
+ {id:'council',n:'議會',x:27,y:2,w:6,h:6,c:'#9a4a3f',ax:29.5,ay:8.6}
+];
+const SPOTS={desk:{x:9.5,y:14.5,n:'你的座位'},counter:{x:6.5,y:16.4,n:'服務台'},car:{x:29.5,y:19.8,n:'公務車'},exit:{x:12.5,y:25.5,n:'大門'}};
+const CARS=[[27,15,'#5d6b7a'],[30,15,'#a33b32'],[30,19,'#d7d2c4'],[27,19,'gov'],[27,22,'#3d5a80'],[30,22,'#6b6b6b']];
+let grid=[];
+function fillG(x,y,w,h,v){for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)grid[j][i]=v}
+function buildWorld(){
+  grid=Array.from({length:MH},()=>Array(MW).fill(1));
+  fillG(1,1,24,16,0);                 // 辦公區
+  fillG(1,17,20,1,8);fillG(21,17,4,1,0); // 櫃檯，右側留走道
+  fillG(1,18,24,7,7);                 // 大廳
+  fillG(26,1,7,24,2);                 // 戶外
+  fillG(25,10,1,2,0);fillG(25,21,1,2,7); // 側門
+  ROOMS.forEach(r=>fillG(r.x,r.y,r.w,r.h,3));
+  [2,8,14,20].forEach(x=>{fillG(x,8,4,2,6);fillG(x,12,4,2,6)});
+  [[1,7],[24,7],[1,16],[24,16]].forEach(([x,y])=>grid[y][x]=4);
+  [[32,11],[26,13],[32,24],[26,9]].forEach(([x,y])=>grid[y][x]=4);
+  fillG(3,21,6,1,9);fillG(16,21,6,1,9);fillG(3,23,6,1,9);fillG(16,23,6,1,9);
+  CARS.forEach(([x,y])=>fillG(x,y,2,2,10));
+  fillG(11,25,3,1,5);
+}
+const exitOpen=()=>S&&PHASES[S.ph]&&PHASES[S.ph].dest==='exit';
+function walkable(x,y){const tx=Math.floor(x),ty=Math.floor(y);if(tx<0||ty<0||tx>=MW||ty>=MH)return false;const c=grid[ty][tx];if(c===5)return exitOpen();return c===0||c===2||c===7}
+function blocked(x,y,r){return !walkable(x-r,y-r)||!walkable(x+r,y-r)||!walkable(x-r,y+r)||!walkable(x+r,y+r)}
+function moveEnt(e,dx,dy,r){const ox=e.x,oy=e.y;if(!blocked(e.x+dx,e.y,r))e.x+=dx;if(!blocked(e.x,e.y+dy,r))e.y+=dy;return Math.hypot(e.x-ox,e.y-oy)}
+function randTile(near,rad,ok){for(let k=0;k<80;k++){const x=near?clamp(Math.floor(near.x)+rint(-rad,rad),1,MW-2):rint(1,MW-2);const y=near?clamp(Math.floor(near.y)+rint(-rad,rad),1,MH-2):rint(1,MH-2);const c=grid[y][x];if((c===0||c===2||c===7)&&(!ok||ok(x,y)))return {x:x+.5,y:y+.5}}return {x:12.5,y:20.5}}
+const inLobby=(x,y)=>y>=18&&x<=24;
+const inOffice=(x,y)=>y<=16&&x<=24;
+
+/* ============ 一天的流程 ============ */
+const PHASES=[
+ {n:'打卡',t:480,end:500,dest:'desk',k:1,tag:'G',lim:22},
+ {n:'櫃檯輪值',t:510,end:600,dest:'counter',k:2,tag:'C',lim:18},
+ {n:'科務會議',t:600,end:650,dest:'mtg',k:1,tag:'M',lim:18},
+ {n:'跑會簽',t:650,end:670,free:20,tag:'Bc'},
+ {n:'午休',t:720,end:810,dest:'tea',k:1,tag:'L',lim:18},
+ {n:'議會備詢',t:810,end:870,dest:'council',k:1,tag:'P',lim:24},
+ {n:'外勤會勘',t:870,end:930,dest:'car',k:1,tag:'F',lim:20},
+ {n:'跑會簽',t:930,end:950,free:18,tag:'Bc'},
+ {n:'趕公文',t:960,end:1045,dest:'desk',k:2,tag:'D',lim:22},
+ {n:'下班',t:1045,end:1050,dest:'exit',k:1,tag:'Z',lim:40},
+ {n:'下班後',t:1367,night:1}
+];
+let S=null;
+function newRun(day,pile){S={day,t:480,used:new Set(),skips:[],done:0,pile:pile||0,ph:-1,phT:0,arrived:false,late:false,left:0,dest:null,paperT:11,papers:[],doorCool:{},night:false,run:Math.random()}}
+const destOf=k=>SPOTS[k]||ROOMS.find(r=>r.id===k);
+function destName(){const d=destOf(S.dest);return d?d.n:''}
+function destPoint(){const d=destOf(S.dest);return d.ax!=null?{x:d.ax,y:d.ay}:{x:d.x,y:d.y}}
+function atDest(){if(S.dest==='exit')return P.y>MH-1.2;const p=destPoint();return Math.hypot(P.x-p.x,P.y-p.y)<1.0}
+
+let P,NPCS,running=false,paused=false,userPaused=false,last=0,grace=0,keys={},joy=null,camX=0,camY=0,zoom=1,dpr=1,cvW=0,cvH=0,walkT=0,staticCv=null,toastT=null,bannerT=null,hintShown=0;
+const SHIRTS=['#d0453a','#2e6db4','#e0a526','#3a9a62','#8a4fb3','#e07b39','#4a8fa8'];
+function citizen(p,chase){return {type:'citizen',x:p.x,y:p.y,spd:chase?2.5:1.3+R()*.5,cool:chase?0:2+R()*4,body:pick(SHIRTS),hair:pick(['#2a2420','#3b3029','#6d6d6d','#1b1b1b']),tgt:null,stuck:0,chase:!!chase,life:chase?32:0}}
+function initWorld(){
+  P={x:12.5,y:24.1,fx:0,fy:-1};NPCS=[];
+  for(let i=0;i<4;i++)NPCS.push(citizen(randTile(null,0,inLobby)));
+  NPCS.push({type:'boss',x:12.5,y:10.5,spd:1.2,cool:4,body:'#24324d',hair:'#1b1b1b',tgt:null,stuck:0,label:'科長'});
+}
+function spawnAide(){NPCS.push({type:'aide',x:12.5,y:24.3,spd:2.4,cool:0,body:'#2c2c2c',hair:'#111',tgt:null,stuck:0,chase:true,life:34,label:'議員助理'})}
+function spawnRushers(n){for(let i=0;i<n;i++){const c=citizen({x:11.6+R()*1.8,y:24.4},true);c.label='民眾';NPCS.push(c)}}
+function spawnPaper(){
+  const src=NPCS.length&&R()<.6?pick(NPCS):{x:P.x+(R()<.5?-8:8),y:P.y+(R()<.5?-5:5)};
+  AU.whoosh();S.papers.push({x:src.x,y:src.y,vx:0,vy:0,wait:.6,life:3.2,rot:0});toast('1999 陳情單飛過來了！');
+}
+function updNPC(n,dt){
+  if(n.cool>0)n.cool-=dt;
+  if(n.chase){n.life-=dt;
+    if(n.life<=0||n.done){n.tgt={x:12.5,y:24.6};if(Math.hypot(n.x-12.5,n.y-24.6)<.7){n.gone=true;return}}
+    else if(!(n.detour>0))n.tgt={x:P.x,y:P.y}}
+  else if(!n.tgt||Math.hypot(n.tgt.x-n.x,n.tgt.y-n.y)<.3)n.tgt=randTile(n,7,n.type==='boss'?inOffice:(S.ph>=3?null:inLobby));
+  if(n.detour>0)n.detour-=dt;
+  const dx=n.tgt.x-n.x,dy=n.tgt.y-n.y,L=Math.hypot(dx,dy)||1,s=n.spd*dt;
+  const m=moveEnt(n,dx/L*s,dy/L*s,.28);n.walk=(n.walk||0)+m*3;n.fx=dx/L;n.fy=dy/L;
+  if(m<s*.3){n.stuck+=dt;if(n.stuck>.5){n.tgt=randTile(n,4);n.detour=1.4;n.stuck=0}}else n.stuck=0;
+}
+function startPhase(i){
+  S.ph=i;const ph=PHASES[i];S.t=ph.t;S.phT=0;S.arrived=false;S.late=false;S.left=ph.k||0;S.papers=[];
+  if(ph.night)return startNight();
+  AU.dingdong();if(i>0){hintShown=1;$('ctlhint').style.opacity=0}
+  S.dest=ph.free?null:ph.dest;
+  if(ph.dest==='council')spawnAide();
+  if(ph.dest==='exit')spawnRushers(2);
+  if(ph.free&&i>4)NPCS.push(citizen(randTile(null,0,inLobby)));
+  banner(`${fmt(ph.t)}　${ph.n}`,ph.free?'在走廊上小心被叫住。':`走到 ${destName()}`);
+  hud();
+}
+function nextPhase(){if(S.ph+1>=PHASES.length)return renderWin();startPhase(S.ph+1)}
+function arrive(){S.arrived=true;hud();runCards()}
+function runCards(){
+  const ph=PHASES[S.ph];
+  if(S.left<=0)return nextPhase();
+  S.left--;openCase(drawCard(ph.tag),`${ph.n}・${destName()}`,runCards);
+}
+function startNight(){
+  S.night=true;S.dest=null;NPCS=[];hud();AU.phone();$('ctlhint').style.opacity=0;
+  banner('22:47　到家了','手機亮了。');
+  const run=S.run;
+  setTimeout(()=>{if(!S||S.run!==run||!running)return;
+    openCase(drawCard('N'),'家裡・晚上',()=>{
+      S.t=192;hud();AU.phone();banner('03:12','電話又響了。');
+      setTimeout(()=>{if(!S||S.run!==run||!running)return;openCase(drawCard('N2'),'家裡・凌晨',()=>renderWin())},1500);
+    })},1500);
+}
+
+function update(dt){
+  if(S.night)return;
+  let ix=0,iy=0;
+  if(keys.ArrowLeft||keys.a)ix-=1;if(keys.ArrowRight||keys.d)ix+=1;if(keys.ArrowUp||keys.w)iy-=1;if(keys.ArrowDown||keys.s)iy+=1;
+  if(joy){const jx=(joy.x-joy.ox)/42,jy=(joy.y-joy.oy)/42,L=Math.hypot(jx,jy);if(L>.15){ix=jx/Math.max(1,L);iy=jy/Math.max(1,L)}}
+  const L=Math.hypot(ix,iy);P.moving=L>.1;
+  if(P.moving){const nx=ix/Math.max(1,L),ny=iy/Math.max(1,L),h=Math.hypot(nx,ny)||1;P.fx=nx/h;P.fy=ny/h;walkT+=moveEnt(P,nx*4.4*dt,ny*4.4*dt,.3);
+    if(!hintShown){hintShown=1;$('ctlhint').style.opacity=0}}
+  NPCS.forEach(n=>updNPC(n,dt));NPCS=NPCS.filter(n=>!n.gone);
+  const ph=PHASES[S.ph];S.phT+=dt;
+  const lim=ph.free||ph.lim;
+  const nt=Math.min(ph.end,ph.t+Math.floor(S.phT/lim*(ph.end-ph.t)));if(nt!==S.t){S.t=nt;hudClock()}
+  // 1999 陳情單
+  S.paperT-=dt;if(S.paperT<=0){S.paperT=Math.max(8,rint(13,20)-(S.day-1));spawnPaper()}
+  for(let i=S.papers.length-1;i>=0;i--){const p=S.papers[i];
+    if(p.wait>0){p.wait-=dt;if(p.wait<=0){const dx=P.x-p.x,dy=P.y-p.y,l=Math.hypot(dx,dy)||1;p.vx=dx/l*7.5;p.vy=dy/l*7.5}continue}
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;p.rot+=dt*8;
+    if(Math.hypot(p.x-P.x,p.y-P.y)<.55){S.papers.splice(i,1);S.pile++;hud();AU.stamp();return openCase(drawCard('H'),'1999 轉辦',()=>{})}
+    if(p.life<=0||p.x<0||p.y<0||p.x>MW||p.y>MH)S.papers.splice(i,1)}
+  grace-=dt;if(grace>0)return;
+  if(ph.free&&S.phT>=ph.free){toast('會簽跑完了。');return nextPhase()}
+  // 被叫住
+  for(const n of NPCS){if(n.cool>0||n.done)continue;if(Math.hypot(n.x-P.x,n.y-P.y)<.75){
+    if(n.chase){n.done=true;n.cool=99}else n.cool=n.type==='boss'?14:12;
+    if(!n.chase)n.tgt=randTile(n,8);
+    const tag=n.type==='boss'?'Bm':n.type==='aide'?'Bp':(ph.dest==='exit'?'Z':'Bc');
+    const where=n.type==='boss'?'走廊上・被科長叫住':n.type==='aide'?'走廊上・被議員助理攔住':'走廊上・被民眾叫住';
+    return openCase(drawCard(tag),where,()=>{})}}
+  // 跑會簽時，經過科長室和檔案室
+  if(ph.free){for(const id of ['boss','file']){const r=ROOMS.find(q=>q.id===id);if(Math.hypot(P.x-r.ax,P.y-r.ay)<1&&!(S.doorCool[id]>S.phT)){S.doorCool[id]=S.phT+8;
+      if(id==='file'){S.pile=Math.max(0,S.pile-1);hud();toast('會簽完一件。桌上公文少一件。');AU.ok();continue}
+      return openCase(drawCard('Bm'),r.n,()=>{P.y=r.ay+1.2})}}return}
+  if(!S.arrived&&atDest())return arrive();
+  if(!S.arrived&&!S.late&&S.phT>=ph.lim&&S.dest!=='exit'){S.late=true;
+    return openCase(LATE,`${fmt(S.t)}・還在路上`,()=>{const d=destPoint();P.x=d.x;P.y=d.y;arrive()})}
+}
+
+/* ============ 畫面 ============ */
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2400)}
+function banner(a,b){const el=$('banner');el.innerHTML=`<b>${esc(a)}</b><span>${esc(b)}</span>`;el.classList.add('on');clearTimeout(bannerT);bannerT=setTimeout(()=>el.classList.remove('on'),1900)}
+function hudClock(){$('clock').textContent=fmt(S.t)}
+function hud(){
+  if(!S||S.ph<0)return;const ph=PHASES[S.ph];
+  hudClock();
+  $('who').textContent=`第 ${S.day} 天・${ph.n}`;
+  $('skips').textContent=S.skips.length;$('pile').textContent=S.pile;
+  $('goal').textContent=S.night?'下班了。手機還開著。':ph.free?'跑會簽：經過檔案室可以消化一件公文。小心被叫住。':(S.arrived?`${ph.n}中`:`目標：走到 ${destName()}（跟著黃色箭頭）`);
+  $('flow').innerHTML=PHASES.map((p,i)=>`<span class="${i<S.ph?'done':i===S.ph?'now':''}">${p.n}</span>`).join('');
+  const cur=$('flow').querySelector('.now');if(cur&&cur.scrollIntoView)try{cur.scrollIntoView({block:'nearest',inline:'center'})}catch(e){}
+}
+function syncAudioBtns(){$('sndBtn').textContent=AU.on?'聲音 開':'聲音 關';const v=$('voBtn');v.hidden=!VO.ok;v.textContent=VO.auto?'朗讀 開':'朗讀 關'}
+
+function renderStart(){
+  running=false;VO.stop();$('game').hidden=true;$('over').hidden=true;$('startWrap').hidden=false;
+  const cnt=+store('gwy_cnt')||0,best=+store('gwy_best')||0;
+  $('main').innerHTML=`<article class="memo fade-in">
+    <header class="memo-head">
+      <span class="org">○○市○○區公所　簽</span>
+      <dl class="meta"><dt>速別</dt><dd>最速件</dd><dt>保存年限</dt><dd>永久</dd></dl>
+    </header>
+    <div class="decide" aria-hidden="true">決行</div>
+    <p class="eyebrow">簽於 08:00　承辦人：你</p>
+    <h1 class="title">少做少錯<br><em>不做</em>不錯</h1>
+    <p class="tag">做了，可能被陳情。不做，也可能被陳情。</p>
+    <section class="msec"><h2>主旨：</h2><p>請於今日 08:00 至 17:30 平安下班，請　鑒核。</p></section>
+    <section class="msec"><h2>說明：</h2><ol class="cn">
+      <li><span>一、</span><span>2024 年有 <b>3,094</b> 位公務人員辭職，比 2020 年多 57%。<small>（${srcLinks(['quit'])}）</small></span></li>
+      <li><span>二、</span><span>加班費每月最多報 <b>20</b> 小時。<small>（${srcLinks(['ot'])}）</small></span></li>
+      <li><span>三、</span><span>事件改編自新聞報導過的真實案例，以及公務現場的常見情境。</span></li>
+    </ol></section>
+    <section class="msec"><h2>擬辦：</h2><p class="flowline">打卡 → 櫃檯輪值 → 科務會議 → 跑會簽 → 午休 → 議會備詢 → 外勤會勘 → 跑會簽 → 趕公文 → 下班 → 下班後</p></section>
+    <button class="primary big-btn" id="go">08:00 打卡上班</button>
+    <p class="hint">按住畫面拖曳，或用方向鍵移動，跟著黃色箭頭走。被民眾、科長、議員助理碰到，或被「1999 陳情單」打中，就會多一件事。</p>
+    ${cnt||best?`<p class="record">在這台裝置上：被陳情 ${cnt} 次${best?`，最多連續平安下班 ${best} 天`:''}。</p>`:''}
+  </article>`;
+  $('go').onclick=()=>{newRun(1,0);startGame()};
+  scrollTo(0,0);
+}
+function startGame(){
+  $('startWrap').hidden=true;$('over').hidden=true;$('game').hidden=false;
+  $('modal').hidden=true;$('shade').hidden=true;$('pauseMsg').hidden=true;
+  AU.init();syncAudioBtns();buildWorld();
+  $('ctlhint').style.opacity=1;hintShown=0;staticCv=null;
+  initWorld();paused=false;userPaused=false;grace=.5;resize();startPhase(0);
+  if(!running){running=true;last=performance.now();requestAnimationFrame(frame)}
+}
+function openCase(c,loc,after){
+  if(!c){after&&after();return}
+  if(c.id!=='late')S.used.add(c.id);paused=true;joy=null;keys={};hud();
+  const speed=pick(['普通件','速件','最速件']);
+  const m=$('modal');
+  m.innerHTML=`<section class="doc fade-in" role="dialog" aria-labelledby="docT">
+    <div class="doc-head"><span class="org">○○區公所　便箋</span><span class="speed">${speed}</span>${VO.ok?'<button class="speak" id="speakBtn">朗讀</button>':''}</div>
+    <div class="doc-meta">${fmt(S.t)}・${esc(loc)}</div>
+    <h2 id="docT"><span class="lbl">主旨：</span>${esc(c.ti)}</h2>
+    <p class="narr"><span class="lbl">說明：</span>${esc(c.tx)}</p>
+    <div class="lbl2">擬辦：</div>
+    <div class="choices">${c.ch.map((x,i)=>`<button class="card" data-i="${i}"><span class="k">${KEYS[i]}案</span><span class="t">${esc(x.l)}</span></button>`).join('')}</div>
+    <div id="res"></div></section>`;
+  $('shade').hidden=false;m.hidden=false;m.scrollTop=0;
+  m.querySelectorAll('.card').forEach(b=>b.onclick=()=>choose(c,c.ch[+b.dataset.i],b,loc,after));
+  const first=m.querySelector('.card');if(first)first.focus({preventScroll:true});
+  AU.click();const sb=$('speakBtn');if(sb)sb.onclick=()=>VO.speak(cardSpeech(c));if(VO.auto)VO.speak(cardSpeech(c));
+}
+function choose(c,x,btn,loc,after){
+  document.querySelectorAll('#modal .card').forEach(b=>b.disabled=true);btn.classList.add('picked');btn.disabled=false;
+  const mult=(x.skip?.6:.85)*(1+(S.day-1)*.15);
+  const pr=Math.min(.95,(x.p||0)*mult);
+  const hit=x.rep||(pr>0&&R()<pr);
+  const res=$('res');
+  if(hit){
+    AU.stamp();VO.stop();
+    const title=x.o||(x.skip?'不做也錯':'陳情成立');
+    res.innerHTML=`<div class="result fade-in"><div class="stamp bad">${esc(title)}</div>${x.z?`<p class="reason">陳情內容：「${esc(x.z)}」</p>`:''}<button class="go" id="next">看後續處理</button></div>`;
+    $('next').onclick=()=>renderFail(c,x,loc);
+  }else if(x.skip){
+    AU.file();S.skips.push({t:S.t,ti:c.ti,l:x.l,r:x.r});S.pile++;
+    res.innerHTML=`<div class="result fade-in"><div class="stamp file">擬存查</div><p class="narr">${esc(x.r)}</p><button class="go" id="next">下一件</button></div>`;
+    $('next').onclick=()=>closeCase(after);
+  }else{
+    AU.ok();S.done++;
+    if(x.safe)S.pile+=x.pile||0;else S.pile=Math.max(0,S.pile-1);
+    const txt=x.r||pick(['這次沒有人陳情。這次。','民眾點點頭，走了。','公文送出去了。','沒事。至少今天沒事。','科長沒說話。']);
+    res.innerHTML=`<div class="result fade-in"><div class="stamp ok">如擬</div><p class="narr">${esc(txt)}</p>${!x.safe&&pr>0?`<p class="odds">同樣的選擇，被陳情的機率大約是 ${Math.round(pr*100)}%。</p>`:''}${x.pile?`<p class="odds">桌上公文多了 ${x.pile} 件。</p>`:''}<button class="go" id="next">下一件</button></div>`;
+    $('next').onclick=()=>closeCase(after);
+  }
+  hud();
+  const nb=$('next');if(nb)nb.focus({preventScroll:true});
+  res.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function closeCase(after){
+  VO.stop();$('modal').hidden=true;$('shade').hidden=true;$('modal').innerHTML='';paused=false;grace=.6;
+  hud();after&&after();
+}
+
+/* ============ 結局 ============ */
+const PROC_MID=[
+ ['當天','科長把你叫進科長室：「怎麼又是你？」'],
+ ['第 2 天','你寫了一份三頁的書面說明。'],
+ ['第 5 天','議員辦公室來電關切。'],
+ ['第 9 天','陳情人不滿意回覆，再陳情一次，這次寄到上級機關。'],
+ ['第 14 天','政風室約談。你說了四次「我是依法辦理」。'],
+ ['第 30 天','上級機關來函：「請查明見復」。你又寫了一份說明。'],
+ ['第 45 天','陳情人把你的名字貼到地方社團。']
+];
+const PROC_END=[
+ ['第 90 天','考績會：查無違失，但「溝通技巧有待加強」。'],
+ ['年底','考績乙等，獎金半個月。'],
+ ['第 60 天','申誡一次。'],
+ ['第 120 天','你被調到另一個單位。新單位也有櫃檯。'],
+ ['第 75 天','查無違失。沒有人跟你說抱歉。']
+];
+function skipList(){
+  if(!S.skips.length)return '<p class="lede" style="opacity:.75">沒有。你今天每一件事都做了。</p>';
+  return `<ol class="ledger">${S.skips.map(s=>`<li><time>${fmt(s.t)}</time><span>${esc(s.ti)}：${esc(s.l)}<span class="sub">${esc(s.r)}</span></span></li>`).join('')}</ol>`;
+}
+function renderFail(c,x,loc){
+  running=false;VO.stop();AU.doom();
+  const n=(+store('gwy_cnt')||0)+1;store('gwy_cnt',n);
+  const o=$('over');o.className='over';
+  let body='';
+  if(c.kind==='r'){
+    body=`<div class="realbox"><span class="realtag">真實案例</span><p>${esc(c.real)}</p><p class="res">${esc(c.res)}</p><p class="src">來源：${srcLinks(c.src)}</p></div>`;
+  }else{
+    const mids=[...PROC_MID].sort(()=>R()-.5).slice(0,3).sort((a,b)=>PROC_MID.indexOf(a)-PROC_MID.indexOf(b));
+    const steps=mids.concat([pick(PROC_END)]);
+    body=`<section class="sect"><h3>後續處理</h3><ol class="ledger">${steps.map(s=>`<li><time>${s[0]}</time><span>${esc(s[1])}</span></li>`).join('')}</ol></section>`;
+  }
+  const lede=x.skip?`你選了「${esc(x.l)}」。你什麼都沒做，還是被陳情了。`:`你選了「${esc(x.l)}」。`;
+  o.innerHTML=`<div class="wrap fade-in">
+    <p class="eyebrow">第 ${S.day} 天・${fmt(S.t)}・${esc(loc)}</p>
+    <h1 class="big">${esc(x.o||(x.skip?'不做也錯':'陳情成立'))}</h1>
+    <p class="lede">${lede}</p>
+    ${x.z?`<blockquote class="quote">「${esc(x.z)}」</blockquote>`:''}
+    ${body}
+    <section class="sect"><h3>今天你擬存查的事</h3>${skipList()}</section>
+    <p class="lede" style="opacity:.7;font-size:14px">在這台裝置上，你已經被陳情 ${n} 次。</p>
+    <div class="row"><button class="primary" id="again">重新上班</button><button class="ghost" id="home">回到首頁</button></div>
+  </div>`;
+  o.hidden=false;o.scrollTop=0;$('game').hidden=true;
+  $('again').onclick=()=>{newRun(1,0);startGame()};$('home').onclick=renderStart;
+  $('again').focus({preventScroll:true});
+}
+function renderWin(){
+  running=false;VO.stop();AU.fanfare();
+  const best=Math.max(+store('gwy_best')||0,S.day);store('gwy_best',best);
+  const k=S.skips.length;
+  const name=k===0?'全勤':k<5?'安全下莊':'資深公務員';
+  const line=k===0?'你今天每件事都做了，而且運氣很好。明天不一定。':k<5?`你今天擬存查了 ${k} 件事。你沒有做錯任何事。`:`你今天擬存查了 ${k} 件事。你一件事都沒做錯，因為很多事你都沒做。`;
+  const o=$('over');o.className='over win';
+  o.innerHTML=`<div class="wrap fade-in">
+    <p class="eyebrow">第 ${S.day} 天・結案</p>
+    <h1 class="big">平安下班</h1>
+    <p class="ending-name">「${name}」</p>
+    <p class="lede">${line}</p>
+    <section class="sect"><h3>今天你擬存查的事</h3>${skipList()}</section>
+    <section class="sect"><h3>桌上公文</h3><p class="lede">還有 <b>${S.pile}</b> 件。明天，它們還是你的。</p></section>
+    <section class="sect"><h3>現場的數字</h3>
+      <div class="facts">
+        <div><b>3,094</b>2024 年辭職的公務人員，比 2020 年多 57%。<br><span class="src">${srcLinks(['quit'])}</span></div>
+        <div><b>20 小時</b>每月加班費的申報上限。<br><span class="src">${srcLinks(['ot'])}</span></div>
+        <div><b>75%</b>考績甲等的慣例上限。至少四分之一的人是乙等。<br><span class="src">${srcLinks(['grade1'])}</span></div>
+      </div>
+    </section>
+    <section class="sect"><h3>寫在最後</h3>
+      <div class="tribute">
+        <p>這不是公務員的全部。很多人每天坐在櫃檯後面，把事情做完、做好。</p>
+        <p>只是在這套制度裡，做事的人要自己承擔風險；把事情擬存查的人，通常沒事。</p>
+      </div>
+      <div class="realbox"><span class="realtag">真實案例</span>
+        <p>2024 年 11 月，勞動部所屬一個分署的一位公務員，在辦公室輕生。勞動部第一次調查，認定和職場霸凌無關；外界質疑後重啟調查，認定他遭到長官霸凌，輕生與工作遭遇有關聯。</p>
+        <p class="res">2025 年 6 月，監察院彈劾了該分署長和她的上級主管。</p>
+        <p class="src">來源：${srcLinks(['bully'])}</p>
+      </div>
+      <p class="hotline">如果你也撐得很辛苦，可以打安心專線 <b>1925</b>（24 小時）。</p>
+    </section>
+    <div class="row"><button class="primary" id="again">明天繼續上班（第 ${S.day+1} 天）</button><button class="ghost" id="home">回到首頁</button></div>
+  </div>`;
+  o.hidden=false;o.scrollTop=0;$('game').hidden=true;
+  const d=S.day+1,pile=S.pile;
+  $('again').onclick=()=>{newRun(d,pile);startGame()};$('home').onclick=renderStart;
+}
+
+/* ============ 繪圖 ============ */
+const cv=$('cv'),cx=cv.getContext('2d');
+function resize(){
+  const st=$('stage');dpr=Math.min(2,window.devicePixelRatio||1);cvW=st.clientWidth;cvH=st.clientHeight;
+  cv.width=Math.max(1,Math.round(cvW*dpr));cv.height=Math.max(1,Math.round(cvH*dpr));
+  zoom=clamp(Math.min(cvW,cvH)/(TS*10.5),.7,1.7);
+  if(!staticCv)buildStatic();
+}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function label(c,txt,x,y,o){o=o||{};c.font=`${o.w||700} ${o.s||13}px "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif`;c.textAlign='center';c.textBaseline='middle';
+  if(o.bg){const w=c.measureText(txt).width+12;c.fillStyle=o.bg;rr(c,x-w/2,y-10,w,20,4);c.fill()}
+  c.fillStyle=o.c||'#fff';c.fillText(txt,x,y)}
+function buildStatic(){
+  staticCv=document.createElement('canvas');staticCv.width=MW*TS;staticCv.height=MH*TS;const c=staticCv.getContext('2d');
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){const t=grid[y][x],px=x*TS,py=y*TS;
+    if(t===0||t===4&&x<25||t===6){c.fillStyle=(x+y)%2?'#c9d1cf':'#c4ccca';c.fillRect(px,py,TS,TS)}
+    else if(t===7||t===9||(t===4&&y>17&&x<25)){c.fillStyle=(x+y)%2?'#e4dfd2':'#ddd7c8';c.fillRect(px,py,TS,TS)}
+    else if(t===2||t===10||t===4){c.fillStyle='#868b8f';c.fillRect(px,py,TS,TS);c.fillStyle='rgba(255,255,255,.04)';c.fillRect(px+((x*7+y*3)%20),py+((x*5+y*11)%24),3,3)}
+    else if(t===8){c.fillStyle='#ddd7c8';c.fillRect(px,py,TS,TS)}
+    else if(t===1||t===3||t===5){c.fillStyle='#39414d';c.fillRect(px,py,TS,TS)}
+  }
+  // 停車格
+  c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=2;
+  CARS.forEach(([x,y])=>{c.strokeRect(x*TS+2,y*TS+2,TS*2-4,TS*2-4)});
+  // 房間
+  ROOMS.forEach(r=>{const px=r.x*TS,py=r.y*TS,w=r.w*TS,h=r.h*TS;
+    c.fillStyle='#39414d';c.fillRect(px,py,w,h);
+    c.fillStyle=r.c;c.fillRect(px+3,py+3,w-6,h-6);
+    c.fillStyle='rgba(255,255,255,.12)';c.fillRect(px+3,py+3,w-6,10);
+    c.fillStyle='rgba(0,0,0,.18)';for(let i=1;i<r.w;i++)c.fillRect(px+i*TS,py+16,1,h-22);
+    // 門
+    c.fillStyle='#e8d7a8';c.fillRect((r.ax-.6)*TS,py+h-5,TS*1.2,5);
+    label(c,r.n,px+w/2,py+h/2,{s:15});
+    if(r.id==='council'){label(c,'備詢',px+w/2,py+h/2+20,{s:11,w:500,c:'rgba(255,255,255,.8)'})}
+  });
+  // 辦公桌
+  [2,8,14,20].forEach(x=>[8,12].forEach(y=>{const px=x*TS,py=y*TS;
+    c.fillStyle='#39414d';c.fillRect(px+1,py+1,TS*4-2,TS*2-2);
+    c.fillStyle='#bba582';c.fillRect(px+3,py+3,TS*4-6,TS*2-6);
+    c.fillStyle='rgba(0,0,0,.15)';c.fillRect(px+2*TS-1,py+3,2,TS*2-6);c.fillRect(px+3,py+TS-1,TS*4-6,2);
+    for(let i=0;i<4;i++){const mx=px+i*TS+8,my=py+(i%2?TS+6:6);c.fillStyle='#2b3340';c.fillRect(mx,my,16,10);c.fillStyle='#8fb8d8';c.fillRect(mx+2,my+2,12,6);
+      c.fillStyle='#fffdf5';const stack=(x*3+y+i*5)%4;for(let s=0;s<stack;s++)c.fillRect(mx+18,my+8-s*2,9,7);}
+  }));
+  // 你的座位
+  c.setLineDash([5,4]);c.strokeStyle='#ffb547';c.lineWidth=2;c.strokeRect(8*TS+TS*.5,14*TS+2,TS*2,TS-4);c.setLineDash([]);
+  label(c,'你的座位',9.5*TS,15.6*TS,{s:11,c:'#7a4b00',w:700});
+  // 櫃檯
+  c.fillStyle='#6d523a';c.fillRect(TS,17*TS+4,20*TS,TS-8);c.fillStyle='#8a6a4b';c.fillRect(TS,17*TS+4,20*TS,6);
+  for(let i=1;i<=20;i+=3){c.fillStyle='rgba(190,225,245,.7)';c.fillRect(i*TS+TS*1.5-1,17*TS,3,TS)}
+  for(let i=0;i<6;i++){c.fillStyle='#ff8a3d';label(c,String(101+i*7),(2.2+i*3)*TS,17.5*TS,{s:10,w:700,c:'#ffd27a',bg:'#20262e'})}
+  label(c,'服務台',22.8*TS,18.6*TS,{s:12,c:'#5a4a33'});
+  // 等候椅
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++)if(grid[y][x]===9){c.fillStyle='#2f6db3';rr(c,x*TS+4,y*TS+6,TS-8,TS-10,5);c.fill();c.fillStyle='#255a96';c.fillRect(x*TS+4,y*TS+6,TS-8,6)}
+  label(c,'等候區',12.5*TS,22*TS,{s:12,c:'#7a6f5a'});
+  // 盆栽、樹
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++)if(grid[y][x]===4){const px=x*TS+TS/2,py=y*TS+TS/2;
+    if(x>25){c.fillStyle='rgba(0,0,0,.2)';c.beginPath();c.arc(px+3,py+4,14,0,7);c.fill();c.fillStyle='#3f7a45';c.beginPath();c.arc(px,py,14,0,7);c.fill();c.fillStyle='#5a9a58';c.beginPath();c.arc(px-4,py-4,8,0,7);c.fill()}
+    else{c.fillStyle='#8b5e3c';c.fillRect(px-7,py+2,14,10);c.fillStyle='#4f8f4a';c.beginPath();c.arc(px,py-2,10,0,7);c.fill();c.fillStyle='#6db066';c.beginPath();c.arc(px-3,py-5,5,0,7);c.fill()}}
+  // 車
+  CARS.forEach(([x,y,col])=>{const px=x*TS+6,py=y*TS+3,w=TS*2-12,h=TS*2-6,gov=col==='gov';
+    c.fillStyle='rgba(0,0,0,.25)';rr(c,px+3,py+3,w,h,8);c.fill();
+    c.fillStyle=gov?'#f4f4ef':col;rr(c,px,py,w,h,8);c.fill();
+    c.fillStyle='rgba(30,40,55,.75)';rr(c,px+5,py+10,w-10,12,3);c.fill();rr(c,px+5,py+h-18,w-10,9,3);c.fill();
+    if(gov){c.fillStyle='#1d4f91';c.fillRect(px,py+h/2-3,w,6);label(c,'公務車',px+w/2,py+h/2+1,{s:10,c:'#fff',bg:'#1d4f91'})}});
+  label(c,'停車場',29.5*TS,24.5*TS,{s:12,c:'rgba(255,255,255,.75)'});
+  // 側門
+  c.fillStyle='#e8d7a8';c.fillRect(25*TS,10*TS,TS,2*TS);c.fillRect(25*TS,21*TS,TS,2*TS);
+  c.fillStyle='rgba(0,0,0,.12)';c.fillRect(25*TS+TS/2-1,10*TS,2,2*TS);c.fillRect(25*TS+TS/2-1,21*TS,2,2*TS);
+  // 打卡鐘
+  c.fillStyle='#20262e';rr(c,15*TS+6,24*TS+4,24,22,3);c.fill();c.fillStyle='#ffb547';c.fillRect(15*TS+10,24*TS+9,16,6);
+  label(c,'打卡鐘',15*TS+18,23.6*TS,{s:10,c:'#5a4a33'});
+  // 坐著的同事
+  [[3.5,10.4],[5.5,7.6],[15.5,10.4],[21.5,11.6],[17.5,14.4],[11.5,11.6],[3.5,14.4]].forEach(([x,y],i)=>{const px=x*TS,py=y*TS;
+    c.fillStyle='#4a525e';rr(c,px-10,py-2,20,14,4);c.fill();
+    c.fillStyle=['#7d8fa8','#a87d7d','#7da88a','#a89a7d'][i%4];c.beginPath();c.ellipse(px,py+1,11,8,0,0,7);c.fill();
+    c.fillStyle='#2a2420';c.beginPath();c.arc(px,py-3,5.5,0,7);c.fill();
+    c.fillStyle='#f0c9a4';c.beginPath();c.arc(px,py-6,3.5,0,7);c.fill()});
+}
+function person(c,n,isP){
+  const px=n.x*TS,py=n.y*TS,b=Math.sin((isP?walkT:(n.walk||0))*2.2)*(isP?(P.moving?1.6:0):1.2),fx=n.fx||0,fy=n.fy==null?1:n.fy;
+  c.fillStyle='rgba(0,0,0,.22)';c.beginPath();c.ellipse(px,py+9,10,4,0,0,7);c.fill();
+  c.fillStyle=n.body;c.beginPath();c.ellipse(px,py+2+b*.3,10,8,0,0,7);c.fill();
+  if(isP){c.strokeStyle='#1d4f91';c.lineWidth=2;c.beginPath();c.moveTo(px-5,py-3);c.lineTo(px,py+5);c.lineTo(px+5,py-3);c.stroke();c.fillStyle='#1d4f91';c.fillRect(px-3,py+4,6,6)}
+  c.fillStyle=n.hair;c.beginPath();c.arc(px-fx*1.5,py-6-fy*1.5+b*.2,7,0,7);c.fill();
+  c.fillStyle='#f0c9a4';c.beginPath();c.arc(px+fx*2,py-5+fy*2+b*.2,5,0,7);c.fill();
+  if(n.label)label(c,n.label,px,py-22,{s:10,bg:n.type==='aide'?'#7a1f1f':n.type==='boss'?'#24324d':'#5a4a33'});
+}
+function render(time){
+  const c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#2a3038';c.fillRect(0,0,cvW,cvH);
+  if(!staticCv||!P)return;
+  const vw=cvW/zoom,vh=cvH/zoom,mw=MW*TS,mh=MH*TS;
+  const tx=vw>=mw?(mw-vw)/2:clamp(P.x*TS-vw/2,0,mw-vw),ty=vh>=mh?(mh-vh)/2:clamp(P.y*TS-vh/2,0,mh-vh);
+  camX+=(tx-camX)*.2;camY+=(ty-camY)*.2;
+  c.save();c.scale(zoom,zoom);c.translate(-camX,-camY);
+  c.drawImage(staticCv,0,0);
+  // 大門
+  const open=exitOpen();c.fillStyle=open?'#5fbf7f':'#a8443a';c.fillRect(11*TS,25*TS,3*TS,6);
+  label(c,open?'大門・開':'大門',12.5*TS,25*TS+16,{s:11,c:'#fff'});
+  // 目的地
+  let dp=null;
+  if(S&&S.dest&&!S.arrived&&!S.night){dp=S.dest==='exit'?{x:12.5,y:25.2}:destPoint();const pulse=(Math.sin(time*5)+1)/2;
+    c.strokeStyle='#ffb547';c.lineWidth=3;c.globalAlpha=.5+pulse*.5;c.beginPath();c.arc(dp.x*TS,dp.y*TS,14+pulse*6,0,7);c.stroke();c.globalAlpha=1;
+    label(c,destName(),dp.x*TS,dp.y*TS-30,{s:11,c:'#1d2330',bg:'#ffb547'})}
+  // 人物
+  const ents=NPCS.map(n=>[n,false]).concat([[P,true]]).sort((a,b)=>a[0].y-b[0].y);
+  ents.forEach(([n,isP])=>{if(isP){person(c,{x:P.x,y:P.y,fx:P.fx,fy:P.fy,body:'#f6f6f0',hair:'#2a2420'},true);c.fillStyle='#ffb547';c.beginPath();const ay=P.y*TS-26+Math.sin(time*4)*2;c.moveTo(P.x*TS-6,ay-8);c.lineTo(P.x*TS+6,ay-8);c.lineTo(P.x*TS,ay);c.closePath();c.fill()}else person(c,n,false)});
+  // 1999 陳情單
+  (S&&S.papers||[]).forEach(p=>{c.save();c.translate(p.x*TS,p.y*TS);
+    if(p.wait>0){c.strokeStyle='rgba(191,42,30,.8)';c.lineWidth=2;c.beginPath();c.arc(0,0,16+p.wait*10,0,7);c.stroke()}
+    c.rotate(p.rot);c.fillStyle='#fffdf5';c.fillRect(-10,-13,20,26);c.strokeStyle='#bf2a1e';c.lineWidth=1.5;c.strokeRect(-10,-13,20,26);
+    c.fillStyle='#bf2a1e';c.font='700 8px "Noto Sans TC",sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('1999',0,-4);c.fillRect(-6,4,12,2);c.fillRect(-6,8,9,2);c.restore()});
+  c.restore();
+  // 畫面外的目的地箭頭
+  if(dp){const sx=(dp.x*TS-camX)*zoom,sy=(dp.y*TS-camY)*zoom,m=34;
+    if(sx<m||sy<m||sx>cvW-m||sy>cvH-m){const cx0=cvW/2,cy0=cvH/2,ang=Math.atan2(sy-cy0,sx-cx0);
+      const ex=clamp(sx,m,cvW-m),ey=clamp(sy,m,cvH-m);c.save();c.translate(ex,ey);c.rotate(ang);c.fillStyle='#ffb547';c.strokeStyle='#1d2330';c.lineWidth=2;
+      c.beginPath();c.moveTo(16,0);c.lineTo(-10,-12);c.lineTo(-4,0);c.lineTo(-10,12);c.closePath();c.fill();c.stroke();c.restore()}}
+  // 搖桿
+  if(joy){c.strokeStyle='rgba(255,255,255,.5)';c.lineWidth=2;c.beginPath();c.arc(joy.ox,joy.oy,42,0,7);c.stroke();
+    const jx=clamp(joy.x-joy.ox,-42,42),jy=clamp(joy.y-joy.oy,-42,42);c.fillStyle='rgba(255,255,255,.6)';c.beginPath();c.arc(joy.ox+jx,joy.oy+jy,16,0,7);c.fill()}
+  // 夜晚
+  if(S&&S.night){c.fillStyle='rgba(6,10,22,.9)';c.fillRect(0,0,cvW,cvH);
+    const g=(Math.sin(time*3)+1)/2;c.fillStyle=`rgba(143,184,216,${.25+g*.35})`;rr(c,cvW/2-26,cvH*.62-46,52,92,9);c.fill();
+    c.fillStyle='rgba(255,255,255,.85)';c.font='700 13px "Noto Sans TC",sans-serif';c.textAlign='center';c.fillText('手機亮了',cvW/2,cvH*.62+66)}
+}
+function frame(now){
+  if(!running)return;
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(!paused&&!userPaused&&S)update(dt);
+  render(now/1000);
+  requestAnimationFrame(frame);
+}
+
+/* ============ 輸入 ============ */
+const KEYMAP={ArrowLeft:'ArrowLeft',ArrowRight:'ArrowRight',ArrowUp:'ArrowUp',ArrowDown:'ArrowDown',a:'a',d:'d',w:'w',s:'s',A:'a',D:'d',W:'w',S:'s'};
+addEventListener('keydown',e=>{
+  if($('game').hidden)return;
+  if(!$('modal').hidden){const n='1234'.indexOf(e.key);if(n>=0){const b=document.querySelectorAll('#modal .card')[n];if(b&&!b.disabled){e.preventDefault();b.click()}}return}
+  if(e.key==='p'||e.key==='Escape'){togglePause();return}
+  const k=KEYMAP[e.key];if(k){keys[k]=true;e.preventDefault()}
+});
+addEventListener('keyup',e=>{const k=KEYMAP[e.key];if(k)keys[k]=false});
+cv.addEventListener('pointerdown',e=>{if(paused||userPaused)return;cv.setPointerCapture(e.pointerId);const r=cv.getBoundingClientRect();joy={id:e.pointerId,ox:e.clientX-r.left,oy:e.clientY-r.top,x:e.clientX-r.left,y:e.clientY-r.top}});
+cv.addEventListener('pointermove',e=>{if(!joy||joy.id!==e.pointerId)return;const r=cv.getBoundingClientRect();joy.x=e.clientX-r.left;joy.y=e.clientY-r.top});
+const endJoy=e=>{if(joy&&joy.id===e.pointerId)joy=null};
+cv.addEventListener('pointerup',endJoy);cv.addEventListener('pointercancel',endJoy);
+function togglePause(){if(!$('modal').hidden)return;userPaused=!userPaused;$('pauseMsg').hidden=!userPaused;$('pauseBtn').textContent=userPaused?'繼續':'暫停';AU.pause(userPaused);keys={};joy=null}
+$('pauseBtn').onclick=togglePause;
+$('pauseMsg').onclick=togglePause;
+$('sndBtn').onclick=()=>{AU.init();AU.setOn(!AU.on);syncAudioBtns()};
+$('voBtn').onclick=()=>{VO.setAuto(!VO.auto);syncAudioBtns()};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&running&&!userPaused&&$('modal').hidden&&!$('game').hidden)togglePause()});
+addEventListener('resize',()=>{if(!$('game').hidden)resize()});
+
+renderStart();
+</script>
+</body>
+</html>
