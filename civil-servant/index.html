@@ -125,6 +125,11 @@ a{color:inherit}
 @keyframes slam{from{transform:scale(2.4) rotate(-14deg);opacity:0}to{transform:scale(1) rotate(-6deg);opacity:1}}
 .reason{font-size:14.5px;color:var(--seal);font-weight:500;margin:0}
 .odds{font-size:12.5px;color:var(--muted);margin:0}
+.pit{font-size:13.5px;line-height:1.6;margin:0;padding:8px 10px;border-left:3px solid var(--seal);background:color-mix(in srgb,var(--seal) 7%,var(--sheet))}
+.pit b{color:var(--seal);margin-right:8px;letter-spacing:.1em}
+.ctr.warn b{color:#ff6b5c;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.4}}
+.pitbox{border-color:rgba(255,90,74,.5)}
 .go{justify-self:stretch;margin-top:2px;padding:12px;border:none;border-radius:4px;background:var(--ink);color:var(--sheet);font-weight:700;letter-spacing:.1em}
 
 /* ===== 結局 ===== */
@@ -178,7 +183,7 @@ a{color:inherit}
       <div class="hud-l"><div class="who" id="who">第 1 天</div><div class="clock" id="clock">08:00</div></div>
       <div class="hud-r">
         <div class="ctr">擬存查<b id="skips">0</b></div>
-        <div class="ctr">桌上公文<b id="pile">0</b></div>
+        <div class="ctr">桌上公文<b id="pile">0/12</b></div>
         <button class="hbtn" id="pauseBtn" aria-label="暫停">暫停</button>
       </div>
     </div>
@@ -214,7 +219,9 @@ const SRC={
   kanjia:{t:'公視新聞',u:'https://news.pts.org.tw/article/490532'},
   quit:{t:'太報（LINE TODAY）',u:'https://today.line.me/tw/v3/article/nX88GNy'},
   ot:{t:'臺中市政府人事處',u:'https://www.personnel.taichung.gov.tw/media/1168194/%E4%BA%94-%E5%8A%A0%E7%8F%AD%E8%B2%BB%E7%94%B3%E8%AB%8B%E8%88%87%E6%A0%B8%E7%99%BC.doc'},
-  bully:{t:'公視新聞網',u:'https://news.pts.org.tw/hotTopic/434'}
+  bully:{t:'公視新聞網',u:'https://news.pts.org.tw/hotTopic/434'},
+  leak:{t:'彰化縣竹塘鄉公所',u:'https://town.chcg.gov.tw/files/117_20220323154316804_%E5%BD%B0%E5%8C%96%E7%B8%A3%E7%AB%B9%E5%A1%98%E9%84%89%E5%85%AC%E6%89%80111%E5%B9%B43%E6%9C%88%E5%85%AC%E5%8B%99%E6%A9%9F%E5%AF%86%E7%B6%AD%E8%AD%B7%E5%AE%A3%E5%B0%8E.pdf'},
+  yt:{t:'懲戒法院判決',u:'https://judgment.judicial.gov.tw/FILES/TPPP/112%2c%e6%b8%85%2c48%2c20231220%2c1.pdf'}
 };
 
 /* ============ 真實案例卡 ============
@@ -251,16 +258,27 @@ const CASES=[
  {id:'kanjia',tag:'N',ti:'粉專',tx:'23:10。你是單位的臉書小編。有人在粉專留言罵首長，底下已經有 40 則回覆。',
   ch:[{l:'開電腦回覆，順便把明天的貼文寫好',rep:1,z:'',o:'你倒下了'},{l:'關機睡覺',skip:1,r:'早上留言串有 300 則。科長問你昨晚為什麼沒處理。'}],
   real:'新北市金山區公所一位約聘人員，同時是媒體組長、臉書小編和媒體聯絡人，家屬說他幾乎不分日夜工作。市府民政局說，他每月加班約 70 到 80 小時。他猝死了。',
-  res:'新北市法制局與國賠會認為他是「自願加班」，不是主管強迫，國賠不成立。監察院做了過勞的調查報告。',src:['kanjia']}
+  res:'新北市法制局與國賠會認為他是「自願加班」，不是主管強迫，國賠不成立。監察院做了過勞的調查報告。',src:['kanjia']},
+ {id:'leak',tag:'D',ti:'附件',tx:'你要發函給被檢舉的屋主，請他限期改善違建。快下班了，你把整份陳情公文的副本拉進附件。',
+  ch:[{l:'直接發送',rep:1,z:'承辦人把檢舉人的身分寄給了被檢舉人。',o:'你洩密了',rule:'檢舉人的身分要保密。就算只是不小心，也可能構成刑法的「公務員過失洩密罪」。'},{l:'把附件一頁一頁看完再發',safe:1,r:'第二頁有檢舉人的名字和電話。你把它抽掉了。公文晚了一天。',pile:1}],
+  real:'彰化縣竹塘鄉公所一位承辦人，把載有檢舉人身分的副本公文，誤當成附件寄給被檢舉的屋主。屋主因此知道是誰檢舉他。',
+  res:'檢察官認為他涉犯刑法「公務員過失洩密罪」，因為他坦承、態度良好，給予緩起訴處分。',src:['leak']},
+ {id:'yt',tag:'N',ti:'業配',tx:'21:30。你女兒的親子頻道有十萬訂閱。廠商私訊：「業配一支，三萬。」',
+  ch:[{l:'接',rep:1,z:'公務員經營商業，違反公務員服務法。',o:'你被移送懲戒',rule:'《公務員服務法》規定公務員不得經營商業。用家人的頻道收業配，也可能算在內。'},{l:'婉拒',skip:1,r:'女兒說：「別人的爸媽都可以。」'}],
+  real:'2023 年，一位公務員在 Facebook、IG 和 YouTube 上，用未成年女兒當網紅的生活影片置入廣告、代言產品並收取報酬，被移送懲戒。',
+  res:'懲戒案認定這違反《公務員服務法》「不得經營商業」的規定。',src:['yt']}
 ];
 
 /* ============ 常見情境卡 ============
    [文字, 被陳情機率, 陳情內容]
    [文字, 'skip', 結果, 機率, 陳情內容]  → 擬存查（不做也可能被陳情）
-   [文字, 'safe', 結果, 公文增加]        → 做了，沒事，但事情變多 */
+   [文字, 'safe', 結果, 公文增加]        → 做了，沒事，但事情變多
+   [文字, 'trap', 結果, 坑, 法規]        → 當下沒事，幾個時段後「舊案回來了」 */
 function SC(id,tag,ti,tx,ch){return {id,kind:'s',tag,ti,tx,ch:ch.map(a=>
-  a[1]==='skip'?{l:a[0],skip:1,r:a[2],p:a[3]||0,z:a[4]||'公務員推諉卸責。'}:
-  a[1]==='safe'?{l:a[0],safe:1,r:a[2],pile:a[3]||0}:{l:a[0],p:a[1],z:a[2]})}}
+  a[1]==='skip'?{l:a[0],skip:1,r:a[2],p:a[3]||0,z:a[4]||'公務員推諉卸責。',rule:a[5]}:
+  a[1]==='safe'?{l:a[0],safe:1,r:a[2],pile:a[3]||0}:
+  a[1]==='trap'?{l:a[0],trap:1,r:a[2],bomb:a[3],rule:a[4]}:
+  {l:a[0],p:a[1],z:a[2],rule:a[3]})}}
 const SCENES=[
 /* 早上・座位 */
 SC('g1','G','錯字','桌上一份公文，限今天辦結。主旨有一個錯字，但已經跑完三個單位的會簽。',[['自己把字改掉',.15,'承辦人擅自塗改已會簽公文。'],['錯字就錯字，直接送出',.35,'公文錯字，議員質詢：「連字都不會寫」。'],['退回去重跑會簽','skip','三個單位要再簽一次。它下週才會回來。',.08,'公文延宕，逾期未辦結。']]),
@@ -270,12 +288,12 @@ SC('g4','G','十二頁','一封手寫陳情信，十二頁正反面。重點在�
 SC('g5','G','首長信箱','首長信箱轉來一封信，副本寄給了七位議員。',[['照規定格式回覆',.12,'回覆制式化，毫無同理心。'],['寫一封有溫度的回信',.15,'回覆未經核稿，代表機關發言不當。'],['等長官指示','skip','七位議員裡，有三位打來問進度。',.12,'延宕回覆，漠視民意。']]),
 SC('g6','G','卡紙','印表機卡紙了。你的公文印到一半，後面排了九份。',[['自己拆開修',.08,'損壞公物，要求賠償。'],['借隔壁科的印表機',.06,'未經同意使用他科設備。'],['報修','skip','廠商說下週二來。']]),
 /* 櫃檯 */
-SC('c1','C','少一張','民眾少帶一份戶籍謄本。他說他住很遠，今天是請假來的。',[['先收件，讓他之後補',.25,'未依規定收件，涉圖利特定人。'],['幫他線上調閱',.15,'未經授權調閱個人資料。'],['請他補齊再來','skip','他請了第二次假。',.15,'承辦人刁難民眾，態度官僚。']]),
-SC('c2','C','委託書','一位阿伯拿著女兒的證件，要幫她辦。沒有委託書。',[['看他年紀大，先辦',.35,'未經本人授權受理，個資外洩。'],['打電話給他女兒確認',.12,'公務員私自聯絡民眾家屬。'],['請他帶委託書再來','skip','他罵了五分鐘，說要找議員。',.18,'公務員不懂變通。']]),
+SC('c1','C','少一張','民眾少帶一份戶籍謄本。他說他住很遠，今天是請假來的。',[['先收件，讓他之後補',.25,'未依規定收件，涉圖利特定人。','文件不齊就受理，對其他照規定補件的人不公平，也可能被認為是圖利。'],['幫他線上調閱',.15,'未經授權調閱個人資料。'],['請他補齊再來','skip','他請了第二次假。',.15,'承辦人刁難民眾，態度官僚。']]),
+SC('c2','C','委託書','一位阿伯拿著女兒的證件，要幫她辦。沒有委託書。',[['看他年紀大，先辦',.35,'未經本人授權受理，個資外洩。','代辦要有本人的委託書。沒有授權就受理，是把別人的個資交出去。'],['打電話給他女兒確認',.12,'公務員私自聯絡民眾家屬。'],['請他帶委託書再來','skip','他罵了五分鐘，說要找議員。',.18,'公務員不懂變通。']]),
 SC('c3','C','認識區長','一位民眾說他認識區長，要先辦。',[['讓他先辦',.4,'公所特權插隊。'],['請他抽號碼牌',.15,'公務員態度傲慢。'],['請他去找區長','skip','他真的去找了。區長打電話給你。',.1,'公務員把民眾推給長官。']]),
 SC('c4','C','錄影','民眾舉起手機：「我錄下來，讓大家看看公務員的態度。」',[['請他不要拍',.3,'公務員阻止民眾監督。'],['微笑繼續辦','safe','影片上傳了。留言說你笑得很假。'],['暫停服務，請主管來','skip','主管來了。影片更長了。',.2,'公務員拒絕服務。']]),
 SC('c5','C','線上申辦','一位奶奶不會用線上申辦系統。這套系統是上級規定一定要用的。',[['用她的帳號幫她操作',.22,'公務員代為操作民眾帳號，涉個資。'],['一步一步教她',.12,'服務太慢，後面民眾等候過久。'],['請她回家找孫子幫忙','skip','她明天會再來一次。',.08,'公所不協助數位弱勢。']]),
-SC('c6','C','鳳梨酥','辦完事，民眾留下一盒鳳梨酥：「一點心意啦。」',[['收下，分給同事',.5,'公務員收受餽贈。'],['當場婉拒',.08,'公務員不近人情，讓民眾難堪。'],['登記，送政風室','safe','你填了三張表。鳳梨酥過期了。']]),
+SC('c6','C','鳳梨酥','辦完事，民眾留下一盒鳳梨酥：「一點心意啦。」',[['收下，分給同事','trap','同事說很好吃。','gift','他的案子在你手上，他就是「與職務有利害關係者」。餽贈原則上要拒絕或退還，並在 3 日內簽報長官、知會政風。'],['當場婉拒',.08,'公務員不近人情，讓民眾難堪。'],['登記，送政風室','safe','你填了三張表。鳳梨酥過期了。']]),
 SC('c7','C','他說得對','民眾說：「這條規定很爛，你自己也知道。」他說得對。',[['點頭：「我也覺得。」',.35,'公務員公開批評政策。'],['幫他寫修法建議',.12,'公務員超出職權。'],['把規定唸一次','skip','他說你像機器人。',.12,'服務態度冷漠。']]),
 SC('c8','C','系統當機','系統當機。櫃檯前排了十二個人。',[['手寫收件，晚點補登',.2,'未依標準作業程序收件。'],['向排隊民眾說明',.15,'公務員推卸責任給系統。'],['等系統恢復','skip','系統一小時後恢復。十二個人走了五個。',.2,'系統當機，服務停擺。']]),
 SC('c9','C','過號','民眾說他剛剛去上廁所，過號了。',[['讓他直接辦',.2,'不公平，其他民眾陳情。'],['請他重抽','skip','他重抽了。前面還有 23 號。',.15,'公務員死板。']]),
@@ -292,7 +310,7 @@ SC('bc1','Bc','問路','民眾在走廊攔住你：「請問土地的要去哪�
 SC('bc2','Bc','我繳稅的','民眾說：「我繳稅養你的，你走那麼慢？」',[['解釋你也有繳稅',.3,'公務員與民眾爭辯。'],['加快腳步','safe','你小跑步。被拍到了。'],['不回應','skip','他說你不理人。',.15,'公務員態度冷漠。']]),
 SC('bc3','Bc','問進度','民眾問：「我上個月的案子怎麼樣了？」不是你承辦的。',[['幫他查一下',.18,'越權查詢他人案件。'],['帶他去找承辦人',.06,'洩漏他人承辦案件資訊。'],['請他打電話問承辦人','skip','承辦人今天請假。',.12,'公務員推諉。']]),
 SC('bc4','Bc','好急','民眾問廁所在哪裡。他看起來很急。',[['帶他去','safe','他到了。'],['借他用員工廁所',.15,'員工廁所開放民眾使用，衛生堪慮。']]),
-SC('bc5','Bc','里長','里長拍你的肩：「那個路燈的事，拜託一下啦。」',[['記下來，回去立案',.06,'受理程序不透明。'],['說會「盡快」',.2,'答應了卻沒做，里長陳情。'],['請他打 1999','skip','他打了。案子轉了一圈，回到你手上。',.1,'公務員推給 1999。']]),
+SC('bc5','Bc','里長','里長拍你的肩：「那個路燈的事，拜託一下啦。」',[['記下來，回去立案',.06,'受理程序不透明。'],['說會「盡快」','trap','里長笑著走了。','lamp','口頭答應沒有立案，這件事沒有任何紀錄，只剩你的一句話。'],['請他打 1999','skip','他打了。案子轉了一圈，回到你手上。',.1,'公務員推給 1999。']]),
 /* 走廊・長官 */
 SC('bm1','Bm','電梯','電梯裡只有你和處長。處長問：「最近忙嗎？」',[['說實話：很忙',.15,'抱怨連連，抗壓性不足。'],['說「還好」','safe','處長說：「那這個案子給你。」',2]]),
 SC('bm2','Bm','三十秒','科長叫住你：「我剛 LINE 你，你怎麼沒回？」訊息是三十秒前傳的。',[['道歉',.04,'反應太慢。'],['說你剛剛在走路','skip','科長說：「走路不能看手機嗎？」',.12,'不服管教。']]),
@@ -300,8 +318,8 @@ SC('bm3','Bm','代理','科長：「下週我休假，你代理。」你沒有�
 SC('bm4','Bm','十份','科長：「幫我印一下，雙面，裝訂，十份。」他手上拿的是他小孩的作業。',[['印',.35,'公物私用。'],['婉拒','skip','科長說：「這麼小的事。」年底你知道它有多大。',.2,'不服從長官。']]),
 /* 議員助理 */
 SC('bp1','Bp','議員很關心','議員助理攔住你：「這個案子，議員很關心。」',[['說會優先處理',.35,'承辦人配合關說。'],['說明依法辦理，不會特別處理',.18,'承辦人態度傲慢，議員要質詢。'],['請他走正式陳情管道','skip','他說：「好，那我們議會見。」',.12,'公務員擺官架子。']]),
-SC('bp2','Bp','先私下給','議員助理要你「先私下給一份」還沒公開的資料。',[['給他',.6,'洩漏公務機密。'],['請議員辦公室正式發函','skip','他走了。議員的質詢稿多了一段。',.15,'阻撓議員監督。']]),
-SC('bp3','Bp','我們選民','議員助理說：「這張罰單可以不要開嗎？是我們選民。」',[['撤銷罰單',.6,'圖利特定人，涉關說。'],['說罰單已經開了，可以申訴','skip','議員在質詢台上說你「執法過當」。',.18,'公務員執法過當。']]),
+SC('bp2','Bp','先私下給','議員助理要你「先私下給一份」還沒公開的資料。',[['給他',.6,'洩漏公務機密。','還沒公開的資料，要用正式公文提供。私下給，是洩密。'],['請議員辦公室正式發函','skip','他走了。議員的質詢稿多了一段。',.15,'阻撓議員監督。']]),
+SC('bp3','Bp','我們選民','議員助理說：「這張罰單可以不要開嗎？是我們選民。」',[['撤銷罰單',.6,'圖利特定人，涉關說。','因為民代關說而撤銷罰單，是圖利特定人。'],['說罰單已經開了，可以申訴','skip','議員在質詢台上說你「執法過當」。',.18,'公務員執法過當。']]),
 /* 午休 */
 SC('l1','L','關燈','12:30 辦公室關燈午休。窗外有民眾在拍照。',[['繼續睡',.35,'公務員上班時間睡覺。'],['拉上窗簾',.15,'公所門窗緊閉，拒民眾於門外。'],['起來開燈服務','safe','你沒睡到。下午開會你一直點頭。']]),
 SC('l2','L','便當','你在吃便當，民眾走進來要辦事。',[['放下便當幫他辦',.05,'公務員邊嚼邊服務，觀感不佳。'],['請他 13:30 再來',.35,'中午拒絕服務。'],['讓他等你吃完','skip','他在旁邊看你吃完。',.25,'公務員吃飯比民眾重要。']]),
@@ -319,16 +337,16 @@ SC('f3','F','加油卡','公務車快沒油了。加油卡在另一位同事身�
 SC('f4','F','斷枝','颱風前，一根斷枝壓在私人車上。',[['先把樹枝移開',.2,'移動時刮傷車子，車主求償。'],['拍照通報','skip','車主說公所看到了也不幫忙。',.15,'見死不救。']]),
 SC('f5','F','拍照存證','會勘要拍照。旁邊的民眾說：「你拍我家幹嘛？」',[['解釋是公務需要',.15,'公務員侵犯隱私。'],['不拍了','skip','回去之後，主管問你證據在哪。',.12,'會勘紀錄不實。']]),
 /* 下午・公文 */
-SC('d1','D','差 300 元','一筆補助，申請人收入超過標準 300 元。他是單親，三個小孩。',[['核准',.4,'不符資格卻核准，涉圖利。'],['簽請長官核示',.1,'長官批了「如擬」。擬的是你。'],['駁回','skip','他說下個月會再申請。',.15,'公務員冷血，不知民間疾苦。']]),
-SC('d2','D','最便宜的那家','一個五萬元的採購，三家比價。最便宜的那家，上次做得很爛。',[['選第二便宜的',.35,'未選最低價，涉圖利特定廠商。'],['選最便宜的','safe','它又做爛了。驗收的也是你。',1]]),
-SC('d3','D','發票抬頭','一張發票的抬頭少了一個字。金額 480 元。',[['直接核銷',.3,'審計糾正：憑證不符規定。'],['請廠商重開','skip','廠商說你很麻煩，下次不接你們的案子。']]),
-SC('d4','D','查地址','一位自稱家屬的人打電話來，要查某人的地址。他說是急事。',[['告訴他',.85,'洩漏個人資料。'],['請他報警處理','skip','他說你不幫忙找失聯的家人。',.15,'公務員冷血。']]),
+SC('d1','D','差 300 元','一筆補助，申請人收入超過標準 300 元。他是單親，三個小孩。',[['核准',.4,'不符資格卻核准，涉圖利。','不符資格卻核准，就算出於同情，也可能構成圖利罪。'],['簽請長官核示',.1,'長官批了「如擬」。擬的是你。'],['駁回','skip','他說下個月會再申請。',.15,'公務員冷血，不知民間疾苦。']]),
+SC('d2','D','最便宜的那家','一個五萬元的採購，三家比價。最便宜的那家，上次做得很爛。',[['選第二便宜的',.35,'未選最低價，涉圖利特定廠商。','決標要照招標文件寫的方式。說好最低標，就不能因為印象不好跳過。'],['選最便宜的','safe','它又做爛了。驗收的也是你。',1]]),
+SC('d3','D','發票抬頭','一張發票的抬頭少了一個字。金額 480 元。',[['直接核銷',.3,'審計糾正：憑證不符規定。','憑證不符規定就核銷，審計抽查時要負責的是承辦人。'],['請廠商重開','skip','廠商說你很麻煩，下次不接你們的案子。']]),
+SC('d4','D','查地址','一位自稱家屬的人打電話來，要查某人的地址。他說是急事。',[['告訴他',.85,'洩漏個人資料。','電話另一頭的人，你無法確認身分。地址是個資，不能在電話裡給。'],['請他報警處理','skip','他說你不幫忙找失聯的家人。',.15,'公務員冷血。']]),
 SC('d5','D','歉難同意','陳情案到期了。依法只能回覆「歉難同意」。',[['寫得溫柔一點，多解釋幾段',.12,'回覆冗長，避重就輕。'],['照範本回','skip','陳情人收到一封四個字的拒絕。',.2,'制式回覆，漠視民意。']]),
 SC('d6','D','逾期警示','公文系統的逾期警示亮了：你有 3 件快到期。',[['今天全部趕完',.12,'公文品質粗糙，遭到退件。'],['先辦最急的一件','safe','另外兩件明天會變紅色。',2]]),
 /* 下班 */
 SC('z1','Z','17:29','下班前一分鐘，一位民眾衝進來，要辦一件要四十分鐘的案子。',[['留下來辦','safe','你辦到 18:10。這個月的加班費，已經報滿 20 小時。'],['請他明天早上再來',.3,'公務員準時下班，不顧民眾。']]),
 SC('z2','Z','科長還沒走','你要打下班卡了。科長還在座位上。',[['先走',.15,'新人不懂職場倫理。'],['等他走','safe','他 20:10 才走。你也是。']]),
-SC('z3','Z','門口的記者','大門口有記者：「請問你們對今天那件事有什麼回應？」',[['說出你真正的想法',.9,'公務員未經授權對外發言。'],['說：「請洽新聞聯絡人。」','skip','新聞標題：市府拒絕回應。']]),
+SC('z3','Z','門口的記者','大門口有記者：「請問你們對今天那件事有什麼回應？」',[['說出你真正的想法',.9,'公務員未經授權對外發言。','機關對外發言要經過授權。你的想法，在新聞上會變成機關的立場。'],['說：「請洽新聞聯絡人。」','skip','新聞標題：市府拒絕回應。']]),
 /* 下班後 */
 SC('n1','N','群組','22:47，科長在群組：「明天早上要的資料，大家今晚看一下。」',[['回「收到」，開始做','safe','你做到 01:30。'],['已讀不回',.2,'同仁不配合。'],['不點開','skip','早上群組有 46 則訊息。',.1,'未即時回應長官。']]),
 SC('n2','N','陌生訊息','23:05，你的私人 LINE 收到陌生訊息：「請問是公所的承辦人嗎？我的案子……」',[['回覆他',.25,'公務員私下與民眾聯繫。'],['不回','skip','他說你已讀不回，明天要去陳情。',.2,'公務員不回訊息。']]),
@@ -341,7 +359,57 @@ SC('h3','H','第 37 次（1999）','同一位民眾，這個月第 37 次陳情�
 SC('h4','H','最後一天（1999）','1999 轉來陳情，限期回覆。今天就是最後一天，上一個單位剛剛才轉給你。',[['今天趕出來',.15,'回覆內容草率。'],['申請展延','skip','展延要先上簽。上簽要三天。',.25,'逾期未回覆。']]),
 SC('h5','H','冷氣水（1999）','1999 轉來陳情：鄰居的冷氣滴水，滴到他的機車。',[['去現場看',.12,'公權力介入私人糾紛。'],['回覆屬私權糾紛，請循調解','skip','他說公所什麼都不管。',.2,'公所什麼都不管。']])
 ];
-const LATE={id:'late',kind:'s',ti:'遲到',tx:'時間到了，你還在路上。',ch:[{l:'跑過去，先道歉',p:.15,z:'承辦人遲到，民眾久候。'},{l:'若無其事地走進去',p:.3,z:'公務員上班遲到，態度輕浮。'}]};
+/* ============ 公務員的坑 ============ */
+const PITS=[
+SC('g7','G','年終獎金明細','信箱來了一封信：「【人事室】年終獎金核發明細.xlsx」。寄件人看起來是人事室。',[['打開附件看看',.6,'社交工程演練點擊，列入資安補強名單。','各機關每年都做社交工程演練。點了信或附件的人要補上資安課程，一週內沒完成，可能被停用公務信箱。'],['打電話問人事室有沒有寄','safe','人事室說沒有。這是社交工程演練。你過關了。'],['直接刪掉','skip','它是真的。你的年終獎金明細被你刪了。']]),
+SC('g8','G','幫我刷一下','同事 LINE 你：「我塞車，幫我刷一下卡，卡在我抽屜。」',[['幫他刷','trap','他 08:20 才到。沒有人發現。','card','代刷卡可能涉偽造文書；公務機關的出勤紀錄，還可能被認定是公文書。'],['說不行',.1,'同事檢舉你上班滑手機。']]),
+SC('g9','G','先做再補簽','科長在走廊上說：「那個案子先做，簽呈之後再補。」',[['照做，先做','trap','案子動起來了。科長很滿意。','oral','長官的口頭指示沒有留下紀錄。出事的時候，簽名的是承辦人。'],['請科長先批簽呈',.15,'部屬拖延，長官交辦不動。'],['先寫好簽呈送上去','safe','科長說：「你很龜毛。」',1]]),
+SC('c11','C','吃個飯','民眾遞上名片：「我是某某建設的。辦完了，晚上一起吃個飯？」他的案子正在你手上。',[['去吃飯','trap','餐廳很好。他買單。','meal','與職務有利害關係者的飲宴應酬，原則上應該拒絕。'],['婉拒',.06,'公務員不給面子。'],['婉拒，簽報並知會政風','safe','你多填了一張表。他的案子照常辦。',1]]),
+SC('c12','C','代簽','一位阿公說他眼睛不好，請你幫他把申請書填完、簽名。',[['幫他填，也幫他簽',.5,'公務員代簽民眾姓名，涉偽造文書。','可以幫忙填，但簽名一定要本人親簽或按捺指印。'],['幫他填，請他自己簽','safe','他簽得歪歪的。沒關係。'],['請他找家人來','skip','他說公所連字都不幫忙寫。',.15,'公所不協助弱勢。']]),
+SC('c13','C','鄰居','櫃檯前排到的是你家樓下的鄰居。他的申請差一點點才符合。',[['照規定辦，不提認識',.2,'承辦人與申請人有私交，未自行迴避。','跟申請人有親屬或私交時，要依利益衝突迴避的規定自行迴避。'],['請同事接手','safe','同事接手了。鄰居說你不給面子。'],['幫他看能不能通融',.6,'承辦人圖利鄰居。','差一點點也是不符合。通融就是圖利。']]),
+SC('c14','C','退 200 元','民眾多繳了 200 元規費，現在要退。退費流程要跑三天。',[['自己先拿 200 元給他',.25,'公款私款混用，帳目不符。','公款和私款不能混用。墊付、找零、退費都要照會計程序走。'],['照流程跑三天','skip','他說 200 元要等三天。',.15,'行政效率低落。']]),
+SC('m7','M','年底預算','十二月了。科長說：「剩下的預算月底前要花完，不然明年會被砍。」',[['趕快找東西買',.35,'年底消化預算，浮濫採購。'],['請廠商先開發票，東西明年再交','trap','帳面漂亮了。','yearend','東西還沒交就先驗收、核銷，可能涉驗收不實、登載不實。'],['照計畫執行，花不完就繳回','skip','明年預算被砍了 20%。科長看你的眼神變了。',.2,'預算執行率過低，影響單位績效。']]),
+SC('m8','M','拆開來買','科長：「這批設備 160 萬，超過公告金額要公開招標，太慢了。拆成兩案，一案 80 萬。」',[['照做，拆成兩案','trap','兩案都很快決標了。','split','《政府採購法》不允許為了規避程序，把公告金額以上的採購拆開辦理。'],['說明這叫拆標',.25,'部屬不配合，延誤時程。'],['照公開招標辦','safe','流標兩次，第三次才決標。科長說進度落後是你的問題。',2]]),
+SC('m9','M','掃街','選舉快到了。長官說：「週末那位候選人掃街，大家穿背心一起去幫忙拜票。」',[['去',.5,'公務員為候選人拜票，違反行政中立。','《公務人員行政中立法》禁止公務人員公開為候選人站台、拜票；下班時間也不代表免責。'],['說家裡有事','skip','長官說：「這次沒來的，我都記得。」',.2,'不服從長官。']]),
+SC('m10','M','幫他簽到','會議結束了，同事沒來。科長說：「幫他簽一下到，他有事。」',[['幫他簽','trap','簽到單看起來很完整。','sign','在簽到單上寫別人的名字，可能涉偽造文書。'],['在旁邊註記「未出席」',.2,'不懂做人，讓長官難堪。']]),
+SC('bc6','Bc','手機幾號','民眾問：「剛剛那個承辦人的手機幾號？我要直接找他。」',[['給他',.45,'公務員洩漏同事個資。','同事的私人手機也是個資。'],['給他辦公室分機','safe','他打了 14 次。同事看了你一眼。'],['說不方便給','skip','他說公所都在躲。',.15,'公務員推諉。']]),
+SC('bc7','Bc','拍一下','民眾指著你手上的公文：「這是我的案子嗎？給我拍一下。」',[['讓他拍',.5,'洩漏公務資料。','公文上可能有別人的個資。要看，請依規定申請閱卷。'],['說要申請閱卷','skip','他說你在隱瞞。',.18,'政府黑箱作業。']]),
+SC('bm5','Bm','順路','科長：「你等一下開公務車出去？順路幫我接一下小孩。」',[['順路接','trap','小孩很可愛。','car','公務車只能用在公務。順路接長官的小孩，是公物私用。'],['說要先填派車單',.2,'不懂變通，長官不悅。']]),
+SC('bm6','Bm','用我的帳號','科長：「這封信你幫我用我的帳號回一下，密碼是……」',[['登入他的帳號回','trap','回完了。','acct','用別人的帳號密碼登入公務系統違反資安規定；出事時，紀錄是那個帳號的，操作的是你。'],['請他自己登入',.15,'部屬推託。']]),
+SC('bp4','Bp','選民餐會','議員助理：「議員週末辦選民餐會，你們科長也會來，你一起來坐一下。」',[['去',.4,'公務員出席民代選民活動，違反行政中立。'],['說要加班','skip','助理說：「好，我會跟議員說你很忙。」',.15,'公務員不給議員面子。']]),
+SC('l5','L','午休網購','午休時，你想用公務電腦上網買東西。',[['用公務電腦買','trap','東西明天會到。','pc','公務電腦有上網紀錄。上班時間用公務電腦處理私事，資訊室查得到。'],['用自己的手機買','safe','東西明天會到。']]),
+SC('p5','P','37%','議員問你一個數字。你不確定，大概是 37%。',[['說「大約 37%」',.35,'官員答詢數據錯誤，議員要求懲處。'],['說「會後提供書面資料」','skip','議員：「這種基本數字都不知道？」',.25,'官員一問三不知。']]),
+SC('f6','F','先簽驗收','廠商的工程還差一點收尾：「先幫我簽驗收，我明天一定弄好，不然我拿不到錢，工人要過年。」',[['先簽','trap','廠商鞠了一個躬。','accept','工程沒完成就簽驗收，可能涉驗收不實、登載不實。'],['等完工再驗',.15,'公務員刁難廠商，工人領不到薪水。']]),
+SC('f7','F','夕陽','會勘時你拍了一張很漂亮的夕陽，想發到自己的 IG。照片角落有一份公文。',[['發','trap','有 38 個讚。','ig','公文只要入鏡，就可能洩漏個資或公務資料。'],['裁掉再發','safe','有 12 個讚。']]),
+SC('d7','D','加班單','你昨天加班到 20:00。不過 18:30 以後，你其實在等科長先走。',[['加班單填到 20:00','trap','加班單送出去了。','ot','加班要確實執行公務。浮報加班費，可能被依貪污治罪條例「利用職務上機會詐取財物」起訴。'],['只填到 18:30','safe','少報 1.5 小時。反正這個月也快報滿 20 小時了。'],['都不報','skip','你白加了兩小時的班。']]),
+SC('d8','D','表哥','你承辦的補助案，申請人之一是你表哥。',[['照常審，反正他符合資格',.4,'承辦人未迴避，涉利益衝突。','承辦案件跟自己或親屬有利害關係時，要自行迴避，並書面告知機關。'],['書面申請迴避','safe','案子換人辦了。表哥說你不幫自己人。']]),
+SC('d9','D','那顆章','主管不在，公文今天一定要發。主管的章就在他抽屜裡。',[['自己蓋','trap','公文準時發出去了。','stamp','未經授權使用主管印章可能涉偽造文書；代決要有正式授權。'],['等主管回來','skip','公文晚了一天，陳情人說公所延宕。',.2,'公文逾期。']]),
+SC('z4','Z','帶回家寫','還有一份報告沒寫完。你想把資料存到隨身碟，帶回家寫。',[['存隨身碟帶回家','trap','你在家寫完了。','usb','公務資料存到私人隨身碟帶出辦公室違反資安規定；掉了就是洩密。'],['留下來加班寫','safe','你寫到 20:30。加班費已經報滿了。'],['明天再寫','skip','明天它會變成「逾期」。',.15,'公文逾期。']]),
+SC('n6','N','分享一下','23:40，長官在群組貼了一位候選人的競選圖卡：「大家幫忙分享。」',[['分享',.45,'公務員動員分享競選文宣，違反行政中立。','《公務人員行政中立法》要求公務人員保持中立；長官要求也不能免責。'],['已讀不回','skip','長官隔天問：「昨天誰沒分享？」',.2,'不服從長官。']]),
+SC('h6','H','檢舉鄰居（1999）','1999 轉來檢舉：隔壁違規停車。檢舉人說：「不要讓他知道是我。」',[['打給被檢舉人：「有人檢舉你喔」',.45,'公務員暗示檢舉人身分。','檢舉人的身分要保密；就算只是暗示，也可能構成洩密。'],['照程序派員查處','safe','被檢舉人一直問是誰檢舉的。你說不能說。他說要陳情你。',1]])
+];
+/* 坑：當下沒事，之後回來 */
+const BOMBS={
+ gift:{ti:'鳳梨酥',o:'鳳梨酥被檢舉了',tx:'政風室來電：「櫃檯那盒鳳梨酥，有民眾檢舉。」',ch:[['說是要分給大家的',.55,'收受利害關係人餽贈，未於三日內簽報。'],['馬上補登錄',.4,'收受餽贈未依規定處理。']]},
+ lamp:{ti:'路燈',o:'路燈還沒修',tx:'里長打 1999：「公所說會盡快，路燈到現在還沒修。」議員也來關心了。',ch:[['馬上找廠商修',.4,'未經採購程序急件發包。'],['回覆「已列管」',.55,'承辦人敷衍里長。']]},
+ card:{ti:'出勤紀錄',o:'出勤紀錄對不上',tx:'人事室比對紀錄：你同事 08:01 刷卡，大樓門禁卻顯示他 08:19 才進門。人事室問你那天 08:01 在哪裡。',ch:[['說你不知道',.6,'承辦人說謊，與同事共同偽造出勤紀錄。'],['承認是你幫他刷的',.55,'代刷卡，涉偽造文書。']]},
+ oral:{ti:'那個案子',o:'長官不記得了',tx:'那個「先做再補簽」的案子被審計抽查。科長說：「我沒有叫你先做。」',ch:[['拿出 LINE 對話紀錄',.5,'部屬公開長官私人對話。'],['自己扛下來',.65,'承辦人未依程序辦理，記過一次。']]},
+ meal:{ti:'那頓飯',o:'你被拍到了',tx:'某某建設的案子被檢舉。檢舉信附了一張照片：你和他在餐廳。',ch:[['說明是一般社交',.65,'與利害關係人飲宴應酬，違反廉政倫理規範。'],['說你有想付錢',.7,'接受利害關係人招待。']]},
+ yearend:{ti:'還沒交的貨',o:'驗收不實',tx:'審計抽查：發票日期是 12 月，廠商隔年 2 月才交貨。驗收單上簽的是你。',ch:[['說是長官指示',.6,'長官否認。承辦人驗收不實。'],['說是作業疏失',.7,'公務員登載不實。']]},
+ split:{ti:'兩個 80 萬',o:'拆標被抓到了',tx:'政風室比對採購資料：同一個月、同一家廠商，兩個 80 萬的案子，品項幾乎一樣。',ch:[['說是科長要拆的',.6,'科長說他沒有。承辦人意圖規避採購法。'],['說是兩個不同的需求',.7,'分批辦理採購，規避公告金額。']]},
+ sign:{ti:'簽到單',o:'筆跡是你的',tx:'那場會議的出席費被查。簽到單上同事的名字，筆跡跟你的一模一樣。',ch:[['說是科長叫你簽的',.6,'科長否認。'],['承認',.6,'代簽會議簽到單，涉偽造文書。']]},
+ car:{ti:'行車紀錄',o:'行車紀錄器拍到了',tx:'有人檢舉公務車停在國小門口。行車紀錄器裡，駕駛是你。',ch:[['說是科長交代的',.6,'科長說他只是請你「順便」。'],['說只是順路',.65,'公物私用。']]},
+ acct:{ti:'登入紀錄',o:'登入紀錄對不上',tx:'資訊室發現，科長的帳號在他請假那天登入過。科長說：「那天不是我。」',ch:[['說是科長叫你登的',.6,'科長否認。'],['不說話',.6,'冒用他人帳號。']]},
+ pc:{ti:'上網紀錄',o:'上網紀錄被調了',tx:'民眾陳情「公務員上班都在網購」，議員要調資料。資訊室抽查，你的電腦中午出現購物網站。',ch:[['說是午休時間',.45,'公務電腦私用。'],['道歉',.45,'公務員上班網購。']]},
+ accept:{ti:'那個工程',o:'工程漏水了',tx:'你先簽驗收的那個工程，今天下大雨漏水了。廠商的電話打不通。',ch:[['說廠商答應要修',.65,'驗收不實。'],['自己找人修',.55,'未經採購程序。']]},
+ ig:{ti:'那張夕陽',o:'照片被放大了',tx:'有人把你 IG 照片角落的公文放大了，上面看得到一位民眾的地址。',ch:[['馬上刪文',.5,'公務員洩漏民眾個資，刪文滅證。'],['公開道歉',.5,'公務員過失洩漏個資。']]},
+ ot:{ti:'加班費',o:'加班費被查了',tx:'政風室抽查加班紀錄。監視器裡，你 18:30 以後一直在滑手機。',ch:[['說你在等科長走',.6,'加班時間未執行公務，浮報加班費。'],['把錢繳回',.5,'事後繳回，仍涉詐領加班費。']]},
+ stamp:{ti:'那顆章',o:'主管不認帳',tx:'主管回來看到那份公文：「這不是我批的。」',ch:[['說是怕逾期',.6,'承辦人擅用主管印章。'],['道歉',.55,'擅用印信，記過一次。']]},
+ usb:{ti:'隨身碟',o:'隨身碟掉了',tx:'你的隨身碟不見了。裡面有 300 位民眾的申請資料。',ch:[['通報資訊室',.5,'公務員過失洩漏個資。'],['再找找看',.75,'個資外洩未通報。']]}
+};
+function bombCard(b){const d=BOMBS[b.key];return {id:'bomb_'+b.key,kind:'b',ti:d.ti,tx:d.tx,from:b,ch:d.ch.map(a=>({l:a[0],p:a[1],z:a[2],o:d.o,rule:b.rule}))}}
+const PILE_MAX=12;
+const LATE={id:'late',kind:'s',ti:'遲到',tx:'時間到了，你還在路上。',ch:[{l:'跑過去，先道歉',p:.22,z:'承辦人遲到，民眾久候。'},{l:'若無其事地走進去',p:.4,z:'公務員上班遲到，態度輕浮。'}]};
 
 /* ============ 聲音與朗讀 ============ */
 const AU=(()=>{
@@ -395,7 +463,7 @@ const srcLinks=keys=>keys.map(k=>`<a href="${SRC[k].u}" target="_blank" rel="noo
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,String(v))}catch(e){return null}}
 
 /* ============ 牌庫 ============ */
-const ALL=CASES.map(c=>Object.assign({kind:'r'},c)).concat(SCENES);
+const ALL=CASES.map(c=>Object.assign({kind:'r'},c)).concat(SCENES,PITS);
 function drawCard(tag){
   let pool=ALL.filter(c=>c.tag===tag&&!S.used.has(c.id));
   if(!pool.length)pool=ALL.filter(c=>(c.tag==='Bc'||c.tag==='H'||c.tag==='C')&&!S.used.has(c.id));
@@ -443,20 +511,21 @@ const inOffice=(x,y)=>y<=16&&x<=24;
 
 /* ============ 一天的流程 ============ */
 const PHASES=[
- {n:'打卡',t:480,end:500,dest:'desk',k:1,tag:'G',lim:22},
- {n:'櫃檯輪值',t:510,end:600,dest:'counter',k:2,tag:'C',lim:18},
- {n:'科務會議',t:600,end:650,dest:'mtg',k:1,tag:'M',lim:18},
+ {n:'打卡',t:480,end:500,dest:'desk',k:1,tag:'G',lim:20},
+ {n:'櫃檯輪值',t:510,end:600,dest:'counter',k:2,tag:'C',lim:15},
+ {n:'科務會議',t:600,end:650,dest:'mtg',k:1,tag:'M',lim:15},
  {n:'跑會簽',t:650,end:670,free:20,tag:'Bc'},
- {n:'午休',t:720,end:810,dest:'tea',k:1,tag:'L',lim:18},
- {n:'議會備詢',t:810,end:870,dest:'council',k:1,tag:'P',lim:24},
- {n:'外勤會勘',t:870,end:930,dest:'car',k:1,tag:'F',lim:20},
+ {n:'午休',t:720,end:810,dest:'tea',k:1,tag:'L',lim:15},
+ {n:'議會備詢',t:810,end:870,dest:'council',k:1,tag:'P',lim:21},
+ {n:'外勤會勘',t:870,end:930,dest:'car',k:1,tag:'F',lim:17},
  {n:'跑會簽',t:930,end:950,free:18,tag:'Bc'},
- {n:'趕公文',t:960,end:1045,dest:'desk',k:2,tag:'D',lim:22},
+ {n:'趕公文',t:960,end:1045,dest:'desk',k:2,tag:'D',lim:18},
  {n:'下班',t:1045,end:1050,dest:'exit',k:1,tag:'Z',lim:40},
  {n:'下班後',t:1367,night:1}
 ];
 let S=null;
-function newRun(day,pile){S={day,t:480,used:new Set(),skips:[],done:0,pile:pile||0,ph:-1,phT:0,arrived:false,late:false,left:0,dest:null,paperT:11,papers:[],doorCool:{},night:false,run:Math.random()}}
+function newRun(day,pile,bombs){S={day,t:480,used:new Set(),skips:[],done:0,pile:pile||0,ph:-1,phT:0,arrived:false,late:false,left:0,dest:null,paperT:9,papers:[],doorCool:{},night:false,run:Math.random(),
+  bombs:(bombs||[]).map(b=>Object.assign({},b,{due:rint(0,2)})),bombNow:null,bombT:0}}
 const destOf=k=>SPOTS[k]||ROOMS.find(r=>r.id===k);
 function destName(){const d=destOf(S.dest);return d?d.n:''}
 function destPoint(){const d=destOf(S.dest);return d.ax!=null?{x:d.ax,y:d.ay}:{x:d.x,y:d.y}}
@@ -467,10 +536,10 @@ const SHIRTS=['#d0453a','#2e6db4','#e0a526','#3a9a62','#8a4fb3','#e07b39','#4a8f
 function citizen(p,chase){return {type:'citizen',x:p.x,y:p.y,spd:chase?2.5:1.3+R()*.5,cool:chase?0:2+R()*4,body:pick(SHIRTS),hair:pick(['#2a2420','#3b3029','#6d6d6d','#1b1b1b']),tgt:null,stuck:0,chase:!!chase,life:chase?32:0}}
 function initWorld(){
   P={x:12.5,y:24.1,fx:0,fy:-1};NPCS=[];
-  for(let i=0;i<4;i++)NPCS.push(citizen(randTile(null,0,inLobby)));
-  NPCS.push({type:'boss',x:12.5,y:10.5,spd:1.2,cool:4,body:'#24324d',hair:'#1b1b1b',tgt:null,stuck:0,label:'科長'});
+  for(let i=0;i<5;i++)NPCS.push(citizen(randTile(null,0,inLobby)));
+  NPCS.push({type:'boss',x:12.5,y:10.5,spd:1.5,cool:4,body:'#24324d',hair:'#1b1b1b',tgt:null,stuck:0,label:'科長'});
 }
-function spawnAide(){NPCS.push({type:'aide',x:12.5,y:24.3,spd:2.4,cool:0,body:'#2c2c2c',hair:'#111',tgt:null,stuck:0,chase:true,life:34,label:'議員助理'})}
+function spawnAide(){NPCS.push({type:'aide',x:12.5,y:24.3,spd:2.6,cool:0,body:'#2c2c2c',hair:'#111',tgt:null,stuck:0,chase:true,life:34,label:'議員助理'})}
 function spawnRushers(n){for(let i=0;i<n;i++){const c=citizen({x:11.6+R()*1.8,y:24.4},true);c.label='民眾';NPCS.push(c)}}
 function spawnPaper(){
   const src=NPCS.length&&R()<.6?pick(NPCS):{x:P.x+(R()<.5?-8:8),y:P.y+(R()<.5?-5:5)};
@@ -492,11 +561,15 @@ function startPhase(i){
   if(ph.night)return startNight();
   AU.dingdong();if(i>0){hintShown=1;$('ctlhint').style.opacity=0}
   S.dest=ph.free?null:ph.dest;
-  if(ph.dest==='council')spawnAide();
-  if(ph.dest==='exit')spawnRushers(2);
+  if(ph.dest==='council'||ph.free)spawnAide();
+  if(ph.dest==='exit')spawnRushers(3);
   if(ph.free&&i>4)NPCS.push(citizen(randTile(null,0,inLobby)));
-  banner(`${fmt(ph.t)}　${ph.n}`,ph.free?'在走廊上小心被叫住。':`走到 ${destName()}`);
+  banner(`${fmt(ph.t)}　${ph.n}`,ph.free?'經過檔案室可以消化公文。小心被叫住。':`走到 ${destName()}`);
+  if(!ph.free&&ph.dest!=='exit'&&i>0){S.pile++;setTimeout(()=>{if(S&&running)toast('新公文進來了：桌上公文 +1')},1900)}
   hud();
+  if(S.pile>=PILE_MAX)return pileFail();
+  const bi=S.bombs.findIndex(b=>b.due<=i);
+  if(bi>=0&&!S.bombNow){S.bombNow=S.bombs.splice(bi,1)[0];S.bombT=1.6}
 }
 function nextPhase(){if(S.ph+1>=PHASES.length)return renderWin();startPhase(S.ph+1)}
 function arrive(){S.arrived=true;hud();runCards()}
@@ -525,21 +598,22 @@ function update(dt){
   if(P.moving){const nx=ix/Math.max(1,L),ny=iy/Math.max(1,L),h=Math.hypot(nx,ny)||1;P.fx=nx/h;P.fy=ny/h;walkT+=moveEnt(P,nx*4.4*dt,ny*4.4*dt,.3);
     if(!hintShown){hintShown=1;$('ctlhint').style.opacity=0}}
   NPCS.forEach(n=>updNPC(n,dt));NPCS=NPCS.filter(n=>!n.gone);
+  if(S.bombNow){S.bombT-=dt;if(S.bombT<=0){const b=S.bombNow;S.bombNow=null;AU.phone();return openCase(bombCard(b),'舊案回來了',()=>{})}}
   const ph=PHASES[S.ph];S.phT+=dt;
   const lim=ph.free||ph.lim;
   const nt=Math.min(ph.end,ph.t+Math.floor(S.phT/lim*(ph.end-ph.t)));if(nt!==S.t){S.t=nt;hudClock()}
   // 1999 陳情單
-  S.paperT-=dt;if(S.paperT<=0){S.paperT=Math.max(8,rint(13,20)-(S.day-1));spawnPaper()}
+  S.paperT-=dt;if(S.paperT<=0){S.paperT=Math.max(6,rint(9,15)-(S.day-1));spawnPaper()}
   for(let i=S.papers.length-1;i>=0;i--){const p=S.papers[i];
-    if(p.wait>0){p.wait-=dt;if(p.wait<=0){const dx=P.x-p.x,dy=P.y-p.y,l=Math.hypot(dx,dy)||1;p.vx=dx/l*7.5;p.vy=dy/l*7.5}continue}
+    if(p.wait>0){p.wait-=dt;if(p.wait<=0){const dx=P.x-p.x,dy=P.y-p.y,l=Math.hypot(dx,dy)||1;p.vx=dx/l*8.5;p.vy=dy/l*8.5}continue}
     p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;p.rot+=dt*8;
-    if(Math.hypot(p.x-P.x,p.y-P.y)<.55){S.papers.splice(i,1);S.pile++;hud();AU.stamp();return openCase(drawCard('H'),'1999 轉辦',()=>{})}
+    if(Math.hypot(p.x-P.x,p.y-P.y)<.55){S.papers.splice(i,1);S.pile++;hud();AU.stamp();if(S.pile>=PILE_MAX)return pileFail();return openCase(drawCard('H'),'1999 轉辦',()=>{})}
     if(p.life<=0||p.x<0||p.y<0||p.x>MW||p.y>MH)S.papers.splice(i,1)}
   grace-=dt;if(grace>0)return;
   if(ph.free&&S.phT>=ph.free){toast('會簽跑完了。');return nextPhase()}
   // 被叫住
   for(const n of NPCS){if(n.cool>0||n.done)continue;if(Math.hypot(n.x-P.x,n.y-P.y)<.75){
-    if(n.chase){n.done=true;n.cool=99}else n.cool=n.type==='boss'?14:12;
+    if(n.chase){n.done=true;n.cool=99}else n.cool=n.type==='boss'?10:10;
     if(!n.chase)n.tgt=randTile(n,8);
     const tag=n.type==='boss'?'Bm':n.type==='aide'?'Bp':(ph.dest==='exit'?'Z':'Bc');
     const where=n.type==='boss'?'走廊上・被科長叫住':n.type==='aide'?'走廊上・被議員助理攔住':'走廊上・被民眾叫住';
@@ -561,7 +635,7 @@ function hud(){
   if(!S||S.ph<0)return;const ph=PHASES[S.ph];
   hudClock();
   $('who').textContent=`第 ${S.day} 天・${ph.n}`;
-  $('skips').textContent=S.skips.length;$('pile').textContent=S.pile;
+  $('skips').textContent=S.skips.length;$('pile').textContent=`${S.pile}/${PILE_MAX}`;$('pile').parentNode.classList.toggle('warn',S.pile>=PILE_MAX-3);
   $('goal').textContent=S.night?'下班了。手機還開著。':ph.free?'跑會簽：經過檔案室可以消化一件公文。小心被叫住。':(S.arrived?`${ph.n}中`:`目標：走到 ${destName()}（跟著黃色箭頭）`);
   $('flow').innerHTML=PHASES.map((p,i)=>`<span class="${i<S.ph?'done':i===S.ph?'now':''}">${p.n}</span>`).join('');
   const cur=$('flow').querySelector('.now');if(cur&&cur.scrollIntoView)try{cur.scrollIntoView({block:'nearest',inline:'center'})}catch(e){}
@@ -579,12 +653,14 @@ function renderStart(){
     <div class="decide" aria-hidden="true">決行</div>
     <p class="eyebrow">簽於 08:00　承辦人：你</p>
     <h1 class="title">少做少錯<br><em>不做</em>不錯</h1>
-    <p class="tag">做了，可能被陳情。不做，也可能被陳情。</p>
+    <p class="tag">做了，可能被陳情。不做，也可能被陳情。<br>看起來沒事的，最危險。</p>
     <section class="msec"><h2>主旨：</h2><p>請於今日 08:00 至 17:30 平安下班，請　鑒核。</p></section>
     <section class="msec"><h2>說明：</h2><ol class="cn">
       <li><span>一、</span><span>2024 年有 <b>3,094</b> 位公務人員辭職，比 2020 年多 57%。<small>（${srcLinks(['quit'])}）</small></span></li>
       <li><span>二、</span><span>加班費每月最多報 <b>20</b> 小時。<small>（${srcLinks(['ot'])}）</small></span></li>
-      <li><span>三、</span><span>事件改編自新聞報導過的真實案例，以及公務現場的常見情境。</span></li>
+      <li><span>三、</span><span>桌上公文累積到 <b>${PILE_MAX}</b> 件就算逾期。擬存查會讓公文變多。</span></li>
+      <li><span>四、</span><span>有些選擇當下沒事，過幾個小時會回來，或者明天回來。</span></li>
+      <li><span>五、</span><span>事件改編自新聞報導過的真實案例，以及公務現場的常見坑。</span></li>
     </ol></section>
     <section class="msec"><h2>擬辦：</h2><p class="flowline">打卡 → 櫃檯輪值 → 科務會議 → 跑會簽 → 午休 → 議會備詢 → 外勤會勘 → 跑會簽 → 趕公文 → 下班 → 下班後</p></section>
     <button class="primary big-btn" id="go">08:00 打卡上班</button>
@@ -622,7 +698,7 @@ function openCase(c,loc,after){
 }
 function choose(c,x,btn,loc,after){
   document.querySelectorAll('#modal .card').forEach(b=>b.disabled=true);btn.classList.add('picked');btn.disabled=false;
-  const mult=(x.skip?.6:.85)*(1+(S.day-1)*.15);
+  const mult=(x.skip?.5:.6)*(1+(S.day-1)*.25);
   const pr=Math.min(.95,(x.p||0)*mult);
   const hit=x.rep||(pr>0&&R()<pr);
   const res=$('res');
@@ -631,6 +707,10 @@ function choose(c,x,btn,loc,after){
     const title=x.o||(x.skip?'不做也錯':'陳情成立');
     res.innerHTML=`<div class="result fade-in"><div class="stamp bad">${esc(title)}</div>${x.z?`<p class="reason">陳情內容：「${esc(x.z)}」</p>`:''}<button class="go" id="next">看後續處理</button></div>`;
     $('next').onclick=()=>renderFail(c,x,loc);
+  }else if(x.trap){
+    AU.ok();S.done++;S.bombs.push({key:x.bomb,due:S.ph+rint(2,3),day:S.day,t:S.t,ti:c.ti,l:x.l,rule:x.rule});
+    res.innerHTML=`<div class="result fade-in"><div class="stamp ok">如擬</div><p class="narr">${esc(x.r)}</p><button class="go" id="next">下一件</button></div>`;
+    $('next').onclick=()=>closeCase(after);
   }else if(x.skip){
     AU.file();S.skips.push({t:S.t,ti:c.ti,l:x.l,r:x.r});S.pile++;
     res.innerHTML=`<div class="result fade-in"><div class="stamp file">擬存查</div><p class="narr">${esc(x.r)}</p><button class="go" id="next">下一件</button></div>`;
@@ -638,8 +718,8 @@ function choose(c,x,btn,loc,after){
   }else{
     AU.ok();S.done++;
     if(x.safe)S.pile+=x.pile||0;else S.pile=Math.max(0,S.pile-1);
-    const txt=x.r||pick(['這次沒有人陳情。這次。','民眾點點頭，走了。','公文送出去了。','沒事。至少今天沒事。','科長沒說話。']);
-    res.innerHTML=`<div class="result fade-in"><div class="stamp ok">如擬</div><p class="narr">${esc(txt)}</p>${!x.safe&&pr>0?`<p class="odds">同樣的選擇，被陳情的機率大約是 ${Math.round(pr*100)}%。</p>`:''}${x.pile?`<p class="odds">桌上公文多了 ${x.pile} 件。</p>`:''}<button class="go" id="next">下一件</button></div>`;
+    const txt=x.r||(c.kind==='b'?pick(['你寫了五頁說明。這次結案了。','政風室說「查無不法」。暫時。','這次躲過了。']):pick(['這次沒有人陳情。這次。','民眾點點頭，走了。','公文送出去了。','沒事。至少今天沒事。','科長沒說話。']));
+    res.innerHTML=`<div class="result fade-in"><div class="stamp ok">如擬</div><p class="narr">${esc(txt)}</p>${!x.safe&&pr>0?`<p class="odds">同樣的選擇，被陳情的機率大約是 ${Math.round(pr*100)}%。</p>`:''}${!x.safe&&x.rule?`<p class="pit"><b>坑</b>${esc(x.rule)}</p>`:''}${x.pile?`<p class="odds">桌上公文多了 ${x.pile} 件。</p>`:''}<button class="go" id="next">下一件</button></div>`;
     $('next').onclick=()=>closeCase(after);
   }
   hud();
@@ -648,7 +728,7 @@ function choose(c,x,btn,loc,after){
 }
 function closeCase(after){
   VO.stop();$('modal').hidden=true;$('shade').hidden=true;$('modal').innerHTML='';paused=false;grace=.6;
-  hud();after&&after();
+  hud();if(S.pile>=PILE_MAX)return pileFail();after&&after();
 }
 
 /* ============ 結局 ============ */
@@ -672,19 +752,26 @@ function skipList(){
   if(!S.skips.length)return '<p class="lede" style="opacity:.75">沒有。你今天每一件事都做了。</p>';
   return `<ol class="ledger">${S.skips.map(s=>`<li><time>${fmt(s.t)}</time><span>${esc(s.ti)}：${esc(s.l)}<span class="sub">${esc(s.r)}</span></span></li>`).join('')}</ol>`;
 }
-function renderFail(c,x,loc){
+function pileFail(){
+  renderFail({kind:'pile',ti:'公文逾期'},{l:'',o:'公文逾期',z:'',
+    rule:'公文都有處理時限。逾期的案件會被研考單位列管、催辦，影響考績。擬存查、被 1999 打中、長官交辦，都會讓桌上的公文變多。'},'你的座位',`桌上公文累積到 ${PILE_MAX} 件。研考單位把你列入逾期管制。`);
+}
+function renderFail(c,x,loc,lede0){
   running=false;VO.stop();AU.doom();
   const n=(+store('gwy_cnt')||0)+1;store('gwy_cnt',n);
   const o=$('over');o.className='over';
   let body='';
   if(c.kind==='r'){
     body=`<div class="realbox"><span class="realtag">真實案例</span><p>${esc(c.real)}</p><p class="res">${esc(c.res)}</p><p class="src">來源：${srcLinks(c.src)}</p></div>`;
-  }else{
+  }else if(c.kind==='b'){
+    body=`<section class="sect"><h3>這個坑是怎麼來的</h3><p class="lede">${c.from.day!==S.day?`第 ${c.from.day} 天 `:''}${fmt(c.from.t)}，「${esc(c.from.ti)}」，你選了「${esc(c.from.l)}」。當時什麼事都沒有。</p></section>`;
+  }else if(c.kind!=='pile'){
     const mids=[...PROC_MID].sort(()=>R()-.5).slice(0,3).sort((a,b)=>PROC_MID.indexOf(a)-PROC_MID.indexOf(b));
     const steps=mids.concat([pick(PROC_END)]);
     body=`<section class="sect"><h3>後續處理</h3><ol class="ledger">${steps.map(s=>`<li><time>${s[0]}</time><span>${esc(s[1])}</span></li>`).join('')}</ol></section>`;
   }
-  const lede=x.skip?`你選了「${esc(x.l)}」。你什麼都沒做，還是被陳情了。`:`你選了「${esc(x.l)}」。`;
+  const lede=lede0||(x.skip?`你選了「${esc(x.l)}」。你什麼都沒做，還是被陳情了。`:`你選了「${esc(x.l)}」。`);
+  if(x.rule)body=`<div class="realbox pitbox"><span class="realtag">你踩到的坑</span><p>${esc(x.rule)}</p></div>`+body;
   o.innerHTML=`<div class="wrap fade-in">
     <p class="eyebrow">第 ${S.day} 天・${fmt(S.t)}・${esc(loc)}</p>
     <h1 class="big">${esc(x.o||(x.skip?'不做也錯':'陳情成立'))}</h1>
@@ -713,6 +800,7 @@ function renderWin(){
     <p class="lede">${line}</p>
     <section class="sect"><h3>今天你擬存查的事</h3>${skipList()}</section>
     <section class="sect"><h3>桌上公文</h3><p class="lede">還有 <b>${S.pile}</b> 件。明天，它們還是你的。</p></section>
+    ${S.bombs.length?`<section class="sect"><h3>還沒爆的坑</h3><p class="lede">今天有 ${S.bombs.length} 件事，當下看起來沒事：${S.bombs.map(b=>'「'+esc(b.ti)+'」').join('、')}。明天見。</p></section>`:''}
     <section class="sect"><h3>現場的數字</h3>
       <div class="facts">
         <div><b>3,094</b>2024 年辭職的公務人員，比 2020 年多 57%。<br><span class="src">${srcLinks(['quit'])}</span></div>
@@ -735,8 +823,8 @@ function renderWin(){
     <div class="row"><button class="primary" id="again">明天繼續上班（第 ${S.day+1} 天）</button><button class="ghost" id="home">回到首頁</button></div>
   </div>`;
   o.hidden=false;o.scrollTop=0;$('game').hidden=true;
-  const d=S.day+1,pile=S.pile;
-  $('again').onclick=()=>{newRun(d,pile);startGame()};$('home').onclick=renderStart;
+  const d=S.day+1,pile=S.pile,bombs=S.bombs;
+  $('again').onclick=()=>{newRun(d,pile,bombs);startGame()};$('home').onclick=renderStart;
 }
 
 /* ============ 繪圖 ============ */
