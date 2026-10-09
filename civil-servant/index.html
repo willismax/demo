@@ -696,6 +696,22 @@ function openCase(c,loc,after){
   const first=m.querySelector('.card');if(first)first.focus({preventScroll:true});
   AU.click();const sb=$('speakBtn');if(sb)sb.onclick=()=>VO.speak(cardSpeech(c));if(VO.auto)VO.speak(cardSpeech(c));
 }
+const OKTXT={
+ _:['這次沒有人陳情。這次。','沒事。至少今天沒事。'],
+ G:['公文送出去了。','科長沒有退件。這次。','它離開你的桌子了。'],
+ C:['民眾點點頭，拿著收據走了。','下一號。','民眾說謝謝，雖然有點勉強。'],
+ M:['科長點點頭，會議繼續。','沒有人再提這件事。','會議紀錄寫好了。'],
+ Bc:['民眾點點頭，走了。','民眾說：「好吧。」'],
+ Bm:['長官沒再說什麼。','長官點點頭，走了。'],
+ Bp:['助理說會轉告議員。','助理走了。議員辦公室的電話還會再來。'],
+ L:['午休繼續。','下午照常上班。'],
+ P:['議員沒再追問，換下一題。','質詢時間到了。','主席敲了一下議事槌。'],
+ F:['會勘紀錄寫好了。','你開車回辦公室。','現場的人點點頭。'],
+ D:['公文送出去了。','它離開你的桌子了。','承辦欄蓋上了你的章。'],
+ H:['1999 案件結案了。這次。','回覆送出去了。','陳情人暫時沒有再打來。'],
+ Z:['你下班了。','大門關上了。'],
+ N:['你放下手機。','訊息停了。'],N2:['你放下手機。','天快亮了。']
+};
 function choose(c,x,btn,loc,after){
   document.querySelectorAll('#modal .card').forEach(b=>b.disabled=true);btn.classList.add('picked');btn.disabled=false;
   const mult=(x.skip?.5:.6)*(1+(S.day-1)*.25);
@@ -718,7 +734,7 @@ function choose(c,x,btn,loc,after){
   }else{
     AU.ok();S.done++;
     if(x.safe)S.pile+=x.pile||0;else S.pile=Math.max(0,S.pile-1);
-    const txt=x.r||(c.kind==='b'?pick(['你寫了五頁說明。這次結案了。','政風室說「查無不法」。暫時。','這次躲過了。']):pick(['這次沒有人陳情。這次。','民眾點點頭，走了。','公文送出去了。','沒事。至少今天沒事。','科長沒說話。']));
+    const txt=x.r||(c.kind==='b'?pick(['你寫了五頁說明。這次結案了。','政風室說「查無不法」。暫時。','這次躲過了。']):pick(OKTXT[c.tag]||OKTXT._));
     res.innerHTML=`<div class="result fade-in"><div class="stamp ok">如擬</div><p class="narr">${esc(txt)}</p>${!x.safe&&pr>0?`<p class="odds">同樣的選擇，被陳情的機率大約是 ${Math.round(pr*100)}%。</p>`:''}${!x.safe&&x.rule?`<p class="pit"><b>坑</b>${esc(x.rule)}</p>`:''}${x.pile?`<p class="odds">桌上公文多了 ${x.pile} 件。</p>`:''}<button class="go" id="next">下一件</button></div>`;
     $('next').onclick=()=>closeCase(after);
   }

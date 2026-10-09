@@ -688,6 +688,24 @@ function openCase(c,loc,after){
   const first=m.querySelector('.card');if(first)first.focus({preventScroll:true});
   AU.click();const sb=$('speakBtn');if(sb)sb.onclick=()=>VO.speak(cardSpeech(c));if(VO.auto)VO.speak(cardSpeech(c));
 }
+const OKTXT={
+ _:['這次沒有被查到。這次。','沒事。至少今天沒事。'],
+ R:['學員點點頭，回到座位。','點名繼續。這次沒事。','學員沒再說什麼。'],
+ E:['報名者點點頭，把表格收進包包。','報名者說他回去想想。','下一號。'],
+ T:['老師說好，下週見。','老師嘆了一口氣，答應了。','課表保住了。這次。'],
+ L:['學員回去吃便當了。','午休繼續，沒人再提。','下午的課照常上。'],
+ A:['名冊送出去了。','會計沒再打來。','津貼這個月會照常入帳。'],
+ B:['委員低頭寫了些什麼，沒有再追問。','簡報結束了。分數下週公布。','分署的人點點頭。'],
+ J:['老闆點點頭，說再聯絡。','老闆說：「好，就這樣。」','你騎機車回去了。'],
+ F:['報表送出去了。','電話掛了。下一位。','這一筆就這樣登錄了。'],
+ Q:['查課人員在紀錄表上打了一個勾。','查課人員點點頭，往下一間教室走。','這一項沒被記缺失。'],
+ Bc:['學員點點頭，回教室了。','學員說：「好吧。」','學員走回樓梯間。'],
+ Bm:['主任沒說話，回辦公室了。','主任說：「好啦。」','主任又去講電話了。'],
+ H:['申訴結案了。這次。','回覆送出去了。','對方暫時沒有再來信。'],
+ X:['你留下了紀錄。這件事還沒結束。','她點點頭，說謝謝。'],
+ Z:['你下班了。','騎樓的燈關了。'],
+ N:['你放下手機。','訊息停了。'],N2:['你放下手機。','天快亮了。']
+};
 function choose(c,x,btn,loc,after){
   document.querySelectorAll('#modal .card').forEach(b=>b.disabled=true);btn.classList.add('picked');btn.disabled=false;
   const mult=(x.skip?.5:.6)*(1+(S.day-1)*.25);
@@ -710,7 +728,7 @@ function choose(c,x,btn,loc,after){
   }else{
     AU.ok();S.done++;
     if(x.safe)S.pile+=x.pile||0;else S.pile=Math.max(0,S.pile-1);
-    const txt=x.r||(c.kind==='b'?pick(['你寫了五頁改善說明。這次過了。','分署說「請持續改善」。暫時。','這次躲過了。']):pick(['這次沒有被查到。這次。','學員點點頭，走了。','資料送出去了。','沒事。至少今天沒事。','主任沒說話。']));
+    const txt=x.r||(c.kind==='b'?pick(['你寫了五頁改善說明。這次過了。','分署說「請持續改善」。暫時。','這次躲過了。']):pick(OKTXT[c.tag]||OKTXT._));
     res.innerHTML=`<div class="result fade-in"><div class="stamp ok">辦妥</div><p class="narr">${esc(txt)}</p>${!x.safe&&pr>0?`<p class="odds">同樣的選擇，被查到缺失的機率大約是 ${Math.round(pr*100)}%。</p>`:''}${!x.safe&&x.rule?`<p class="pit"><b>坑</b>${esc(x.rule)}</p>`:''}${x.pile?`<p class="odds">待補件多了 ${x.pile} 件。</p>`:''}<button class="go" id="next">下一件</button></div>`;
     $('next').onclick=()=>closeCase(after);
   }
