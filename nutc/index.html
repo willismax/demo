@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>三民路 129 號</title>
+<meta name="description" content="國立臺中科技大學三民校區、一中商圈與中友百貨的 3D 散步小遊戲。非官方作品，地圖為示意。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: a full-screen three.js street scene; a 新生報到單 card opens and closes the day; HUD chips sit in the corners; dialogue slides up as a speech panel. */
+:root{
+  --ink:#1c2733; --muted:#5b6876; --paper:#fffdf8; --line:#e1dccf;
+  --teal:#0f6e74; --orange:#f08a24; --red:#d6452f; --sky:#bfe6ff;
+  --f-ui:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--sky);color:var(--ink);font-family:var(--f-ui);overflow:hidden;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+/* HUD */
+.hud{position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 0;pointer-events:none}
+.chip{pointer-events:auto;background:rgba(255,253,248,.92);border:1.5px solid var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700;box-shadow:0 2px 0 var(--ink);white-space:nowrap}
+.zone{font-size:14px}
+.zone small{display:block;font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:.06em}
+.hud-r{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip b{color:var(--teal);font-variant-numeric:tabular-nums}
+.chip.btn{background:var(--teal);color:#fff;border-color:var(--ink)}
+.chip.btn.off{background:rgba(255,253,248,.92);color:var(--ink)}
+#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);max-width:calc(100% - 32px);background:rgba(28,39,51,.9);color:#fff;padding:8px 14px;border-radius:8px;font-size:14px;text-align:center;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.on{opacity:1}
+#prompt{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 128px);transform:translateX(-50%);background:var(--paper);border:2px solid var(--ink);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:700;box-shadow:0 3px 0 var(--ink);pointer-events:none;white-space:nowrap}
+#prompt kbd{font:inherit;background:var(--ink);color:#fff;border-radius:4px;padding:0 6px;margin-right:6px;font-size:12px}
+
+/* 手機操作 */
+#joy{position:fixed;left:calc(env(safe-area-inset-left,0px) + 18px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:124px;height:124px;border-radius:50%;background:rgba(255,253,248,.35);border:2px solid rgba(28,39,51,.35);touch-action:none}
+#joy i{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,253,248,.9);border:2px solid var(--ink)}
+#act{position:fixed;right:calc(env(safe-area-inset-right,0px) + 22px);bottom:calc(env(safe-area-inset-bottom,0px) + 34px);width:84px;height:84px;border-radius:50%;background:var(--orange);color:#fff;border:2.5px solid var(--ink);box-shadow:0 4px 0 var(--ink);font-size:16px;font-weight:900}
+#act:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+
+/* 對話 */
+#dlg{position:fixed;left:0;right:0;bottom:0;padding:0 12px calc(env(safe-area-inset-bottom,0px) + 14px)}
+.dlg-card{max-width:640px;margin:0 auto;background:var(--paper);border:2.5px solid var(--ink);border-radius:14px;box-shadow:0 5px 0 var(--ink);padding:14px 16px 12px;position:relative}
+.dlg-name{position:absolute;top:-15px;left:14px;background:var(--teal);color:#fff;border:2px solid var(--ink);border-radius:8px;padding:1px 10px;font-size:13px;font-weight:900;letter-spacing:.04em}
+.dlg-text{font-size:17px;line-height:1.7;min-height:3.4em;margin:6px 0 0;max-width:60ch}
+.dlg-next{display:block;margin-left:auto;margin-top:4px;background:none;border:none;color:var(--muted);font-size:12px}
+.choices{display:grid;gap:7px;margin-top:10px}
+.choices button{text-align:left;background:#fff;border:2px solid var(--ink);border-radius:8px;padding:8px 12px;font-size:15px;font-weight:500;box-shadow:0 2px 0 var(--ink);display:flex;justify-content:space-between;gap:10px}
+.choices button span:last-child{color:var(--muted);font-variant-numeric:tabular-nums}
+.choices button[disabled]{opacity:.45;box-shadow:none}
+
+/* 地圖 */
+#mapWrap{position:fixed;inset:0;background:rgba(20,30,40,.55);display:grid;place-items:center;padding:16px}
+.map-card{background:var(--paper);border:2.5px solid var(--ink);border-radius:14px;box-shadow:0 5px 0 var(--ink);padding:12px;width:min(720px,100%);max-height:100%;display:flex;flex-direction:column;gap:8px}
+.map-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.map-head h2{margin:0;font-size:17px;font-weight:900}
+.map-head button{background:var(--ink);color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:13px}
+#map{width:100%;height:auto;aspect-ratio:290/255;max-height:70vh;border-radius:8px;border:1.5px solid var(--line);background:#e9efe2}
+.map-note{font-size:12px;color:var(--muted);margin:0}
+
+/* 開始與結束 */
+.sheet{position:fixed;inset:0;overflow-y:auto;background:linear-gradient(180deg,rgba(191,230,255,.55),rgba(191,230,255,.85));padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 24px)}
+.card{max-width:520px;margin:0 auto;background:var(--paper);border:2.5px solid var(--ink);border-radius:16px;box-shadow:0 6px 0 var(--ink);padding:20px 20px 18px;display:grid;gap:12px;position:relative}
+.form-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.form-head span{font-size:13px;font-weight:900;letter-spacing:.14em}
+.form-head dl{margin:0;display:grid;grid-template-columns:auto auto;gap:0 8px;font-size:11.5px;color:var(--muted)}
+.form-head dd{margin:0;color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.eyebrow{font-size:12px;letter-spacing:.16em;color:var(--teal);font-weight:700;margin:0}
+.title{font-size:clamp(40px,12vw,58px);font-weight:900;line-height:1.05;margin:0;letter-spacing:.01em}
+.title em{font-style:normal;color:var(--orange)}
+.lede{font-size:16px;line-height:1.7;margin:0}
+.rows{display:grid;gap:6px;margin:0;padding:0;list-style:none;font-size:14px;line-height:1.6}
+.rows li{display:grid;grid-template-columns:5.5em 1fr;gap:8px}
+.rows li b{color:var(--teal)}
+.go{background:var(--orange);color:#fff;border:2.5px solid var(--ink);border-radius:12px;box-shadow:0 4px 0 var(--ink);padding:13px;font-size:18px;font-weight:900;letter-spacing:.08em}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.go.ghost{background:#fff;color:var(--ink)}
+.fine{font-size:12px;color:var(--muted);margin:0;line-height:1.6}
+.stamp{position:absolute;right:16px;top:58px;width:78px;height:78px;border:3px double var(--red);color:var(--red);border-radius:50%;display:grid;place-items:center;font-size:15px;font-weight:900;transform:rotate(-12deg);opacity:.85;text-align:center;line-height:1.15;pointer-events:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.stats div{border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--muted)}
+.stats b{display:block;font-size:24px;color:var(--ink);font-variant-numeric:tabular-nums}
+.list{margin:0;padding-left:1.2em;font-size:14px;line-height:1.7}
+.list li::marker{color:var(--orange)}
+.src{font-size:12px;color:var(--muted);line-height:1.8}
+.src a{color:var(--teal)}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap}
+.btnrow .go{flex:1 1 160px}
+#loading{position:fixed;inset:0;display:grid;place-items:center;font-size:15px;color:var(--ink);background:var(--sky)}
+@media (hover:hover) and (pointer:fine){#joy,#act{display:none}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="三民路一帶的 3D 街景"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div class="chip zone" id="zone">三民路三段<small>臺中市北區</small></div>
+  <div class="hud-r">
+    <div class="chip">記憶 <b id="found">0/6</b></div>
+    <div class="chip">零用錢 <b id="money">200</b></div>
+    <button class="chip btn" id="mapBtn" hidden>地圖 M</button>
+    <button class="chip btn" id="sndBtn">聲音 開</button>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="prompt" hidden></div>
+<div id="joy" hidden><i></i></div>
+<button id="act" hidden>說話</button>
+
+<div id="dlg" hidden>
+  <div class="dlg-card">
+    <div class="dlg-name" id="dlgName"></div>
+    <p class="dlg-text" id="dlgText"></p>
+    <div class="choices" id="dlgChoices"></div>
+    <button class="dlg-next" id="dlgNext">繼續 ▸（空白鍵）</button>
+  </div>
+</div>
+
+<div id="mapWrap" hidden>
+  <div class="map-card">
+    <div class="map-head"><h2>三民路百年地圖</h2><button id="mapClose">關閉</button></div>
+    <canvas id="map" width="870" height="765"></canvas>
+    <p class="map-note">示意圖，不照比例。★ 已找到的記憶　◆ 還沒找到　● 你在這裡</p>
+  </div>
+</div>
+
+<div class="sheet" id="start" hidden></div>
+<div class="sheet" id="end" hidden></div>
+<div id="loading">三民路上車有點多，地圖載入中⋯</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script>
+'use strict';
+/* ============ 資料來源 ============ */
+const SRC={
+  addr:{t:'臺中科大總務處',u:'https://ga.nutc.edu.tw/var/file/21/1021/img/1609/150373201.pdf'},
+  hist:{t:'大學網（校史）',u:'https://www.unews.com.tw/School/Info/45'},
+  yizhong:{t:'NOWnews（一中商圈）',u:'https://www.nownews.com/news/6224169'},
+  ice:{t:'鏡週刊（一中豐仁冰）',u:'https://www.mirrormedia.mg/story/20260402food001'},
+  chungyo:{t:'臺中市文化局（中友百貨）',u:'https://www.culture.taichung.gov.tw/media/819726/%E5%9F%8E%E5%B8%82%E8%97%9D%E7%AB%99-%E4%B8%AD%E5%8F%8B%E7%99%BE%E8%B2%A8%E5%85%AC%E5%8F%B8-%E7%8C%BF%E7%B7%A3%E5%9C%92%E8%97%9D%E8%A1%93%E9%A4%A8.pdf'},
+  chungyo2:{t:'今周刊（中友與廣三 SOGO）',u:'https://www.businesstoday.com.tw/article/category/80404/post/199906100021/'},
+  tcfsh:{t:'yam 蕃新聞（臺中一中）',u:'https://n.yam.com/Article/20250428513127'}
+};
+
+/* ============ 百年記憶（發光的光點） ============ */
+const STORIES=[
+ {id:'gate',x:-15.5,z:-9.5,title:'三民路三段 129 號',src:['addr','hist'],
+  lines:['這裡是國立臺中科技大學三民校區，地址是臺中市北區三民路三段 129 號。','學校的起點在 1919 年，那時叫「臺灣公立臺中商業學校」。']},
+ {id:'biz',x:-66,z:-27,title:'從臺中商專開始',src:['hist','addr'],
+  lines:['1963 年，學校改制為省立臺中商業專科學校；1982 年改為國立臺中商業專科學校。','現在商學院在中商大樓和中技大樓上課。']},
+ {id:'merge',x:-40,z:-34,title:'2011 年的合併',src:['hist','addr'],
+  lines:['1999 年改制為技術學院。2011 年改名國立臺中科技大學，並和國立臺中護理專科學校合併。','三民校區有商學院、設計學院、語文學院、資訊與流通學院和智慧產業學院。']},
+ {id:'street',x:22,z:0,title:'一中街怎麼來的',src:['yizhong'],
+  lines:['一中街一帶以前有台中商專、台中體專和台中一中，學生本來就多。','補習班陸續進駐，吃的喝的也跟著聚集，慢慢變成今天以育才街、一中街為核心的一中商圈。']},
+ {id:'ice',x:103,z:-33,title:'榕樹下的冰',src:['ice'],
+  lines:['一中豐仁冰在 1946 年開始賣冰，創辦人原本做木製浴桶的生意。','早年在榕樹下擺攤三十多年，後來才搬到台中一中正門口斜對面。']},
+ {id:'chungyo',x:-17,z:-104,title:'中友百貨',src:['chungyo','chungyo2'],
+  lines:['中友百貨在 1992 年開幕，就在一中商圈旁邊。','1995 年廣三 SOGO 加入以前，中友長期是中台灣百貨業的龍頭。']}
+];
+
+/* ============ 一中街吃的（價格是遊戲設定） ============ */
+const FOOD={
+ chicken:{n:'雞排',p:75,say:'剛起鍋的雞排比你的臉還大。'},
+ tea:{n:'珍珠奶茶',p:60,say:'半糖少冰，珍珠很 Q。'},
+ douhua:{n:'豆花',p:45,say:'花生加粉圓，甜度剛好。'},
+ ball:{n:'地瓜球',p:40,say:'一袋十二顆，邊走邊吃。'}
+};
+
+/* ============ 人物 ============ */
+const NPCS=[
+ {id:'guide',name:'學伴・小芸',x:-18,z:8,face:-1.6,look:{top:'#0f6e74',pants:'#2c3440',hair:'#2a1d18',long:true,bag:'#f08a24'},
+  say(S){
+   if(!S.hasMap)return {lines:['嗨，你是新生吧？我是你的學伴小芸，資管系三年級。','今天開學第一天，系上給新生一個任務：把三民路一帶的「百年記憶」找回來。','校園裡、一中街、育才街，還有中友百貨前面，一共藏了 6 個發光的光點。','這張「三民路百年地圖」給你，按 M 或右上角的「地圖」就能打開。','過三民路記得走斑馬線、等行人綠燈。'],then:'map'};
+   if(S.found<STORIES.length)return {lines:[`你已經找到 ${S.found} 個記憶，還差 ${STORIES.length-S.found} 個。`,'打開地圖看看，菱形的就是還沒找到的地方。']};
+   return {lines:['6 個都找齊了！你今天走的路，比很多學長姊大一一整年還多。','三民路 129 號從 1919 年走到現在，以後也輪到你了。歡迎報到。'],then:'end'};
+  }},
+ {id:'uncle',name:'校史志工・陳伯伯',x:-33,z:14,face:-1.6,look:{top:'#7a5c3e',pants:'#3a3a3a',hair:'#c9c9c9',glasses:true},
+  say(){return {lines:['年輕人，第一天來喔？','這間學校的歲數，比你阿公還大。1919 年創校的時候叫臺中商業學校，後來變成臺中商專，大家都很熟。','1999 年改成技術學院，2011 年改名臺中科大，還跟臺中護專合併。','你去校園裡、商學院那邊找找，光點會告訴你更多。']}}},
+ {id:'design',name:'設計學院・學姊',x:-101,z:-4,face:1.6,path:[[-101,-4],[-101,10]],look:{top:'#e5527a',pants:'#22252b',hair:'#5a2f1f',long:true,bag:'#2f2f2f'},
+  say(){return {lines:['這棟是昌明樓，設計學院在這裡。','我昨天在教室趕作品到凌晨三點，下樓買宵夜，一中街還有攤子開著。','你如果要去一中街，記得留點零用錢。']}}},
+ {id:'biz',name:'商學院・學長',x:-69,z:-14,face:-1.2,look:{top:'#2f4b7c',pants:'#2b2b2b',hair:'#1a1a1a'},
+  say(){return {lines:['商學院在中商大樓和中技大樓兩棟上課。','中商大樓那邊有停車場，早上八點以前來比較好停。','光點就在中商大樓前面，你剛剛應該有看到在發光。']}}},
+ {id:'cs',name:'資訊大樓・同學',x:-28,z:-40,face:-2.4,path:[[-28,-40],[-24,-30]],look:{top:'#4d4d4d',pants:'#25303b',hair:'#111',glasses:true},
+  say(){return {lines:['資訊大樓是資訊與流通學院和智慧產業學院在用的。','我在等程式跑完。跑完我就要去中友地下美食街吃飯。']}}},
+ {id:'cat',name:'校園橘貓・阿橘',x:-55,z:20,cat:true,path:[[-55,20],[-48,6],[-58,-6],[-62,10]],
+  say(S){return {lines:S.found<3?['喵。','（阿橘看了一眼校門，又看了一眼一中街的方向。）']:['喵～','（阿橘在你腳邊打了一個滾，好像在說：快找齊了。）']}}},
+ {id:'guard',name:'交通志工・林阿姨',x:11.4,z:-6.5,face:Math.PI,look:{top:'#e3c321',pants:'#2b2b2b',hair:'#2a2a2a',vest:true},
+  say(){return {lines:['同學，三民路車很多。','過馬路一定要走斑馬線，看到小綠人再走；小綠人開始閃，就不要再衝了。','機車也很多，左右都要看。']}}},
+ {id:'chicken',name:'雞排攤・老闆',x:21,z:-4,face:0,shop:['chicken'],look:{top:'#ffffff',pants:'#3a3a3a',hair:'#1a1a1a',apron:'#d6452f'},
+  say(){return {lines:['雞排要不要？現炸的喔！']}}},
+ {id:'tea',name:'飲料店・店員',x:30,z:-4,face:0,shop:['tea'],look:{top:'#7cc2a8',pants:'#2b2b2b',hair:'#3b2416',long:true,apron:'#2f6f5a'},
+  say(){return {lines:['歡迎光臨！甜度冰塊幫你調。']}}},
+ {id:'douhua',name:'豆花攤・阿姨',x:47,z:-4,face:0,shop:['douhua'],look:{top:'#f2e3c6',pants:'#5a4a3a',hair:'#444',long:true,apron:'#c98a2b'},
+  say(){return {lines:['豆花要加什麼料？']}}},
+ {id:'ball',name:'地瓜球攤・老闆',x:22,z:4,face:Math.PI,shop:['ball'],look:{top:'#ffd27a',pants:'#3a3a3a',hair:'#222',apron:'#8a5a2b'},
+  say(){return {lines:['地瓜球！一袋十二顆！']}}},
+ {id:'flyer',name:'補習班・發傳單的大哥',x:60,z:1,path:[[60,1],[80,-2],[70,2],[54,-1]],look:{top:'#e04f3a',pants:'#20242a',hair:'#111'},
+  say(S){S.flyers++;return {lines:S.flyers<2?['同學，大學也有在補喔！英文、證照、轉學考、研究所，都可以來試聽！','（你手上多了一張傳單。）']:[`同學又是你！再一張。（你已經拿到 ${S.flyers} 張傳單。）`]}}},
+ {id:'tcfsh',name:'臺中一中・學生',x:106,z:-24,face:Math.PI/2,look:{top:'#f4f4f4',pants:'#2d3a57',hair:'#111',bag:'#2d3a57'},
+  say(){return {lines:['這裡是臺中一中，在育才街上。','學校創立於 1915 年，是日治時期第一所臺灣人可以就讀的中學。','對面那家冰店開很久了，放學很多人去排。']}}},
+ {id:'auntie',name:'排隊的阿姨',x:-16,z:-119,face:-1.6,look:{top:'#b05a9a',pants:'#3a3a3a',hair:'#3a2a2a',bag:'#d6452f'},
+  say(){return {lines:['週年慶喔！我從早上排到現在。','中友就在一中商圈旁邊，逛完百貨走過去就能吃東西。','你也是來排的嗎？光點在那邊，不用排隊啦。']}}}
+];
+
+/* ============ 地圖配置（示意，單位公尺；x 往東，z 往南） ============ */
+const ROAD={x0:-9,x1:9,z0:-165,z1:90};
+const CROSS=[{z0:-3,z1:3},{z0:-124,z1:-118}];
+const WALK=[
+ {x0:-13,x1:13,z0:-165,z1:90},     // 三民路與人行道
+ {x0:-128,x1:-13,z0:-68,z1:68},    // 校園
+ {x0:13,x1:100,z0:-5,z1:5},        // 一中街
+ {x0:100,x1:110,z0:-86,z1:46},     // 育才街
+ {x0:110,x1:158,z0:-84,z1:-16},    // 臺中一中
+ {x0:-24,x1:-13,z0:-145,z1:-95}    // 中友百貨前廣場
+];
+const CAMPUS=[
+ {id:'admin',n:'行政大樓',x:-44,z:-2,w:14,d:30,h:14,c:'#e8e2d6'},
+ {id:'zz',n:'中正大樓',x:-42,z:46,w:28,d:16,h:18,c:'#dcc9a3'},
+ {id:'info',n:'資訊大樓',x:-44,z:-50,w:26,d:14,h:22,c:'#bccada'},
+ {id:'zs',n:'中商大樓',x:-82,z:-42,w:22,d:24,h:20,c:'#d9b79c'},
+ {id:'zj',n:'中技大樓',x:-82,z:34,w:22,d:24,h:18,c:'#c8d4b2'},
+ {id:'cm',n:'昌明樓',x:-114,z:-4,w:14,d:34,h:16,c:'#e6c7c4'}
+];
+const ZONES=[
+ {n:'中友百貨',s:'三民路三段',x0:-80,x1:-13,z0:-150,z1:-93},
+ {n:'臺中一中',s:'育才街',x0:110,x1:160,z0:-86,z1:-15},
+ {n:'育才街',s:'一中商圈',x0:100,x1:110,z0:-90,z1:50},
+ {n:'一中街',s:'一中商圈',x0:13,x1:100,z0:-6,z1:6},
+ {n:'三民路三段',s:'斑馬線',x0:-9,x1:9,z0:-3,z1:3},
+ {n:'三民路三段',s:'斑馬線',x0:-9,x1:9,z0:-124,z1:-118},
+ {n:'三民路三段',s:'車道，小心車',x0:-9,x1:9,z0:-170,z1:95},
+ {n:'三民路三段',s:'人行道',x0:-13,x1:13,z0:-170,z1:95}
+];
+
+/* ============ 工具 ============ */
+const $=id=>document.getElementById(id);
+const R=Math.random,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[Math.floor(R()*a.length)];
+const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,String(v))}catch(e){return null}}
+let toastT=0;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2600)}
+
+/* ============ 聲音 ============ */
+const AU=(()=>{let ctx=null,on=true,bgT=null,step=0,nextT=0;try{on=store('sm_snd')!=='0'}catch(e){}
+  const mf=m=>440*Math.pow(2,(m-69)/12);
+  function init(){if(!ctx){const A=window.AudioContext||window.webkitAudioContext;if(!A)return;try{ctx=new A()}catch(e){return}}if(ctx.state==='suspended')ctx.resume()}
+  function tone(f,t,d,type,vol){if(!ctx||!on)return;const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+d+.05)}
+  const MEL=[67,0,72,74,76,0,74,72,69,0,72,0,67,0,0,0,65,0,69,72,74,0,72,69,67,0,64,0,67,0,0,0];
+  function sched(){if(!ctx)return;const e=60/112/2;while(nextT<ctx.currentTime+.2){const m=MEL[step%MEL.length];if(m)tone(mf(m),nextT,e*1.6,'triangle',.035);if(step%4===0)tone(mf(m?m-24:43),nextT,e*2.5,'sine',.04);nextT+=e;step++}}
+  return {init,get on(){return on},
+   setOn(v){on=v;store('sm_snd',v?'1':'0')},
+   bgm(){if(!ctx||bgT)return;nextT=ctx.currentTime+.3;bgT=setInterval(sched,60)},
+   chime(){if(!ctx)return;const t=ctx.currentTime;[84,88,91,96].forEach((m,i)=>tone(mf(m),t+i*.08,.6,'sine',.12))},
+   blip(){if(!ctx)return;tone(880+R()*120,ctx.currentTime,.06,'square',.03)},
+   coin(){if(!ctx)return;const t=ctx.currentTime;tone(988,t,.08,'square',.05);tone(1319,t+.08,.25,'square',.05)},
+   honk(){if(!ctx)return;const t=ctx.currentTime;tone(330,t,.25,'sawtooth',.05);tone(415,t,.25,'sawtooth',.04)},
+   whistle(){if(!ctx)return;const t=ctx.currentTime;for(let i=0;i<3;i++)tone(2600+(i%2)*200,t+i*.09,.08,'sine',.08)},
+   fanfare(){if(!ctx)return;const t=ctx.currentTime;[72,76,79,84].forEach((m,i)=>tone(mf(m),t+i*.14,i===3?.9:.3,'triangle',.12))}};
+})();
+
+/* ============ three.js 基本設定 ============ */
+let renderer,scene,camera,TOON=null;
+const matCache={};
+function mat(c){if(matCache[c])return matCache[c];const m=TOON?new THREE.MeshToonMaterial({color:c,gradientMap:TOON}):new THREE.MeshLambertMaterial({color:c});return matCache[c]=m}
+function texMat(t){return TOON?new THREE.MeshToonMaterial({map:t,gradientMap:TOON}):new THREE.MeshLambertMaterial({map:t})}
+const GEO={box:new THREE.BoxGeometry(1,1,1),plane:new THREE.PlaneGeometry(1,1),cyl:new THREE.CylinderGeometry(.5,.5,1,12),sph:new THREE.SphereGeometry(.5,16,12),cone:new THREE.ConeGeometry(.5,1,10)};
+function box(w,h,d,c,x,y,z,o){const m=new THREE.Mesh(GEO.box,o&&o.m||mat(c));m.scale.set(w,h,d);m.position.set(x,y,z);m.castShadow=!!(o&&o.cast);m.receiveShadow=!(o&&o.noRecv);(o&&o.parent||scene).add(m);return m}
+function flat(x0,x1,z0,z1,c,y){const m=new THREE.Mesh(GEO.plane,mat(c));m.rotation.x=-Math.PI/2;m.scale.set(x1-x0,z1-z0,1);m.position.set((x0+x1)/2,y||.02,(z0+z1)/2);m.receiveShadow=true;scene.add(m);return m}
+function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');draw(g,w,h);const t=new THREE.CanvasTexture(c);t.anisotropy=4;return t}
+const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+function textTex(text,o){o=o||{};const size=o.size||64,pad=o.pad||18;const g0=document.createElement('canvas').getContext('2d');g0.font=`${o.weight||900} ${size}px ${FONT}`;
+  const lines=o.vertical?text.split(''):[text];const tw=o.vertical?size:Math.ceil(g0.measureText(text).width);const w=tw+pad*2,h=(o.vertical?lines.length*size*1.05:size*1.25)+pad*2;
+  const tex=canvasTex(w,h,(g)=>{if(o.bg){g.fillStyle=o.bg;const r=o.radius||14;g.beginPath();g.moveTo(r,0);g.arcTo(w,0,w,h,r);g.arcTo(w,h,0,h,r);g.arcTo(0,h,0,0,r);g.arcTo(0,0,w,0,r);g.fill();if(o.border){g.strokeStyle=o.border;g.lineWidth=6;g.stroke()}}
+    g.font=`${o.weight||900} ${size}px ${FONT}`;g.textAlign='center';g.textBaseline='middle';
+    if(o.stroke){g.strokeStyle=o.stroke;g.lineWidth=size/6;g.lineJoin='round'}
+    lines.forEach((ch,i)=>{const y=o.vertical?pad+size*1.05*(i+.5):h/2+size*.04;if(o.stroke)g.strokeText(ch,w/2,y);g.fillStyle=o.fg||'#fff';g.fillText(ch,w/2,y)})});
+  return {tex,w,h}}
+function signPlane(text,o,x,y,z,ry,height){const t=textTex(text,o);const m=new THREE.Mesh(GEO.plane,new THREE.MeshBasicMaterial({map:t.tex,transparent:!o.bg}));m.scale.set(height*t.w/t.h,height,1);m.position.set(x,y,z);m.rotation.y=ry||0;scene.add(m);return m}
+function label(text,x,y,z,s,o){const t=textTex(text,Object.assign({fg:'#1c2733',bg:'rgba(255,253,248,.92)',border:'#1c2733',size:52,pad:14},o||{}));const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t.tex,depthWrite:false}));sp.scale.set(s*t.w/t.h,s,1);sp.position.set(x,y,z);scene.add(sp);return sp}
+
+/* 大樓外牆：用畫布畫窗戶 */
+function facadeTex(wm,hm,c,o){o=o||{};const ppm=12,w=Math.max(32,Math.round(wm*ppm)),h=Math.max(32,Math.round(hm*ppm));
+  return canvasTex(w,h,(g)=>{g.fillStyle=c;g.fillRect(0,0,w,h);const floor=3.6*ppm,col=(o.col||3.4)*ppm;
+    for(let y=floor*.35;y<h-floor*.6;y+=floor){g.fillStyle='rgba(0,0,0,.06)';g.fillRect(0,y+floor*.62,w,3);
+      for(let x=col*.3;x<w-col*.5;x+=col){g.fillStyle=o.win||'#7fa6c4';g.fillRect(x,y,col*.62,floor*.48);g.fillStyle='rgba(255,255,255,.35)';g.fillRect(x,y,col*.62,floor*.12)}}
+    if(o.band){g.fillStyle=o.band;for(let y=floor*.95;y<h;y+=floor)g.fillRect(0,y,w,4)}})}
+const OCC=[];
+function ownMat(c){return TOON?new THREE.MeshToonMaterial({color:c,gradientMap:TOON}):new THREE.MeshLambertMaterial({color:c})}
+function building(x,z,w,d,h,c,o){o=o||{};const side=texMat(facadeTex(d,h,c,o)),front=texMat(facadeTex(w,h,c,o));const top=ownMat(o.roof||shade(c,-.12)),rim=ownMat(shade(c,-.2));
+  const m=new THREE.Mesh(GEO.box,[side,side,top,top,front,front]);m.scale.set(w,h,d);m.position.set(x,h/2,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);
+  box(w+.4,.6,d+.4,null,x,h+.3,z,{m:rim});
+  OCC.push({box:new THREE.Box3(new THREE.Vector3(x-w/2-.2,0,z-d/2-.2),new THREE.Vector3(x+w/2+.2,h+.6,z+d/2+.2)),mats:[side,front,top,rim],a:1});return m}
+function shade(hex,k){const c=new THREE.Color(hex);if(k<0)c.lerp(new THREE.Color('#000'),-k);else c.lerp(new THREE.Color('#fff'),k);return '#'+c.getHexString()}
+
+/* ============ 碰撞 ============ */
+const OBS=[];
+function obs(x,z,w,d){OBS.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2})}
+function inWalk(x,z){for(const r of WALK)if(x>=r.x0&&x<=r.x1&&z>=r.z0&&z<=r.z1)return true;return false}
+function canStand(x,z,r){if(!inWalk(x-r,z-r)||!inWalk(x+r,z-r)||!inWalk(x-r,z+r)||!inWalk(x+r,z+r))return false;for(const o of OBS)if(x+r>o.x0&&x-r<o.x1&&z+r>o.z0&&z-r<o.z1)return false;return true}
+
+/* ============ 人物模型 ============ */
+function person(look){const g=new THREE.Group();const skin='#f2c9a5';
+  const legL=box(.28,.8,.3,look.pants,-.17,.4,0,{cast:true,parent:g}),legR=box(.28,.8,.3,look.pants,.17,.4,0,{cast:true,parent:g});
+  const body=box(.78,.86,.46,look.top,0,1.25,0,{cast:true,parent:g});
+  if(look.vest)box(.82,.6,.5,'#ff7a1a',0,1.32,0,{parent:g});
+  if(look.apron)box(.6,.7,.06,look.apron,0,1.15,.25,{parent:g});
+  const armL=box(.2,.74,.24,look.top,-.5,1.26,0,{cast:true,parent:g}),armR=box(.2,.74,.24,look.top,.5,1.26,0,{cast:true,parent:g});
+  const head=new THREE.Mesh(GEO.sph,mat(skin));head.scale.set(.74,.74,.74);head.position.set(0,1.98,0);head.castShadow=true;g.add(head);
+  const hair=new THREE.Mesh(GEO.sph,mat(look.hair));hair.scale.set(.8,.5,.8);hair.position.set(0,2.16,-.04);g.add(hair);
+  if(look.long)box(.66,.6,.2,look.hair,0,1.8,-.3,{parent:g});
+  box(.08,.1,.02,'#1c2733',-.14,2.0,.36,{parent:g});box(.08,.1,.02,'#1c2733',.14,2.0,.36,{parent:g});
+  if(look.glasses){box(.5,.04,.02,'#1c2733',0,2.02,.37,{parent:g})}
+  if(look.bag)box(.56,.62,.26,look.bag,0,1.3,-.35,{cast:true,parent:g});
+  g.userData={legL,legR,armL,armR};return g}
+function catModel(){const g=new THREE.Group();const c='#f0a04b';
+  box(.5,.4,.9,c,0,.45,0,{cast:true,parent:g});const h=new THREE.Mesh(GEO.sph,mat(c));h.scale.set(.48,.44,.44);h.position.set(0,.75,.48);g.add(h);
+  box(.1,.16,.06,c,-.14,.98,.48,{parent:g});box(.1,.16,.06,c,.14,.98,.48,{parent:g});box(.08,.08,.5,c,0,.62,-.6,{parent:g}).rotation.x=-.6;
+  [[-.16,.3],[.16,.3],[-.16,-.3],[.16,-.3]].forEach(([x,z])=>box(.12,.26,.12,'#fff3e0',x,.13,z,{parent:g}));
+  g.userData={};return g}
+function animPerson(g,t,moving){const u=g.userData;if(!u.legL)return;const s=moving?Math.sin(t*10)*.6:0;u.legL.rotation.x=s;u.legR.rotation.x=-s;u.armL.rotation.x=-s*.8;u.armR.rotation.x=s*.8}
+
+/* ============ 建構世界 ============ */
+const LIGHTS=[];let crystalGlow=null;
+function buildWorld(){
+  scene.background=new THREE.Color('#bfe6ff');scene.fog=new THREE.Fog('#d5ecf8',110,260);
+  scene.add(new THREE.HemisphereLight('#eef7ff','#8fa47f',.52));
+  const sun=new THREE.DirectionalLight('#fff3dc',.62);sun.position.set(40,80,30);sun.castShadow=true;
+  const small=Math.min(innerWidth,innerHeight)<700;sun.shadow.mapSize.set(small?1024:2048,small?1024:2048);const sc=sun.shadow.camera;sc.left=-45;sc.right=45;sc.top=45;sc.bottom=-45;sc.near=10;sc.far=220;sun.shadow.bias=-.0008;
+  scene.add(sun);scene.add(sun.target);W.sun=sun;
+  // 地面
+  flat(-170,190,-200,130,'#b8c9a4',0);
+  flat(-128,-13,-68,68,'#a6d38e',.01);                     // 校園草地
+  flat(-34,-13,-12,12,'#c98f6c',.02);flat(-128,-34,-3,3,'#d9cdb8',.02);flat(-80,-62,-68,68,'#d9cdb8',.021);flat(-62,-34,-34,-28,'#d9cdb8',.021);flat(-62,-34,26,32,'#d9cdb8',.021);
+  flat(-90,-60,-14,8,'#c76f52',.025);                       // 球場
+  [[-90,-60,-14,-13.7],[-90,-60,7.7,8],[-90.2,-89.9,-14,8],[-60.1,-59.8,-14,8],[-75.1,-74.9,-14,8]].forEach(a=>flat(a[0],a[1],a[2],a[3],'#fff',.03));
+  flat(ROAD.x0,ROAD.x1,ROAD.z0,ROAD.z1,'#555c64',.03);       // 三民路
+  flat(-13,-9,-165,90,'#d9d1c1',.04);flat(9,13,-165,90,'#d9d1c1',.04);
+  box(.3,.18,255,'#bdb5a5',-9,.09,-37.5);box(.3,.18,255,'#bdb5a5',9,.09,-37.5);
+  for(let z=ROAD.z0;z<ROAD.z1;z+=8){if(CROSS.some(c=>z+3>c.z0-4&&z<c.z1+4))continue;flat(-4.65,-4.35,z,z+3.2,'#f4f4f4',.045);flat(4.35,4.65,z,z+3.2,'#f4f4f4',.045)}
+  for(let z=ROAD.z0;z<ROAD.z1;z+=1){if(CROSS.some(c=>z>c.z0-4&&z<c.z1+4))continue;flat(-.35,-.15,z,z+1,'#f2c14e',.046);flat(.15,.35,z,z+1,'#f2c14e',.046)}
+  CROSS.forEach(c=>{for(let x=-8.4;x<8.5;x+=1.4)flat(x,x+.75,c.z0,c.z1,'#f6f6f6',.05);flat(-9,0,c.z0-2,c.z0-1.6,'#f6f6f6',.05);flat(0,9,c.z1+1.6,c.z1+2,'#f6f6f6',.05)});
+  label('三民路三段',0,.4,40,2.2,{bg:null,fg:'#ffffff',stroke:'#3d444b'}).material.depthTest=true;
+  // 校園圍牆與校門
+  for(const [z0,z1] of [[-68,-6],[6,68]]){box(.5,1.3,z1-z0,'#e8e1d4',-13,.65,(z0+z1)/2,{cast:true});box(.6,.15,z1-z0,'#8a9097',-13,1.35,(z0+z1)/2);obs(-13,(z0+z1)/2,1.2,z1-z0)}
+  box(115,1.3,.5,'#e8e1d4',-70.5,.65,-68,{cast:true});box(115,1.3,.5,'#e8e1d4',-70.5,.65,68,{cast:true});
+  [-7,7].forEach(z=>{box(1.6,5,1.6,'#9b5d47',-13,2.5,z,{cast:true});obs(-13,z,1.8,1.8)});
+  box(1,1.5,15.6,'#7d4635',-13,5.6,0,{cast:true});
+  signPlane('國立臺中科技大學',{fg:'#fff5df',size:72},-12.45,5.6,0,Math.PI/2,1.1);
+  label('國立臺中科技大學',-13,8.4,0,1.5,{bg:'#7d4635',fg:'#fff5df',border:'#1c2733'});
+  signPlane('三民路三段129號',{fg:'#1c2733',bg:'#f3ead7',size:44,radius:6},-12.15,2.7,-7,Math.PI/2,.55);
+  // 校園大樓
+  CAMPUS.forEach(b=>{building(b.x,b.z,b.w,b.d,b.h,b.c,{band:'rgba(0,0,0,.08)'});obs(b.x,b.z,b.w,b.d);b.label=label(b.n,b.x,b.h+3.2,b.z,2.4)});
+  signPlane('行政大樓',{fg:'#1c2733',size:60},-36.9,9,-2,Math.PI/2,1.4);
+  // 樹
+  const trees=[];
+  for(let z=-62;z<=62;z+=12){const tz=z+(Math.round(z/12)%2?2:0);if(Math.abs(tz)>10)trees.push([-16.5,tz])}
+  [[-26,22],[-26,-22],[-58,22],[-58,-20],[-98,-28],[-98,24],[-122,-50],[-122,50],[-60,58],[-24,58],[-24,-60],[-60,-60],[-100,52],[-100,-56],[-68,8],[-50,-16]].forEach(t=>trees.push(t));
+  for(let z=-160;z<=86;z+=14){if(!CROSS.some(c=>z>c.z0-4&&z<c.z1+4)&&!(z>-150&&z<-92)){trees.push([-11,z])}if(!CROSS.some(c=>z>c.z0-4&&z<c.z1+4)&&!(z>-8&&z<8))trees.push([11,z])}
+  [[124,-70],[150,-70],[150,-24],[124,-24],[118,-50]].forEach(t=>trees.push(t));
+  const tg=new THREE.CylinderGeometry(.22,.3,2.2,8),cg=new THREE.SphereGeometry(1.6,12,10);
+  const tIM=new THREE.InstancedMesh(tg,mat('#7a5233'),trees.length),cIM=new THREE.InstancedMesh(cg,mat('#5aa35a'),trees.length);
+  const d=new THREE.Object3D();trees.forEach(([x,z],i)=>{d.position.set(x,1.1,z);d.scale.set(1,1,1);d.updateMatrix();tIM.setMatrixAt(i,d.matrix);d.position.set(x,3.2,z);const s=.9+((i*37)%10)/25;d.scale.set(s,s*.9,s);d.updateMatrix();cIM.setMatrixAt(i,d.matrix);
+    if((x<-13&&x>-128&&Math.abs(z)<68)||x>110||Math.abs(x)===11)obs(x,z,.8,.8)});
+  tIM.castShadow=cIM.castShadow=true;scene.add(tIM);scene.add(cIM);
+  // 一中街
+  flat(13,100,-5,5,'#d6c7ad',.03);for(let x=14;x<100;x+=4)flat(x,x+.12,-5,5,'#c9b89b',.035);
+  [-4.8,4.8].forEach(z=>{box(.4,5.2,.4,'#c23b2b',13.6,2.6,z,{cast:true});obs(13.6,z,.6,.6)});box(.4,1.1,10,'#c23b2b',13.6,5.4,0);
+  signPlane('一中街',{fg:'#fff',size:80},13.85,5.4,0,Math.PI/2,1.0);signPlane('一中街',{fg:'#fff',size:80},13.35,5.4,0,-Math.PI/2,1.0);
+  label('一中街',13.6,7.6,0,1.6,{bg:'#c23b2b',fg:'#fff',border:'#1c2733'});
+  const NORTH=['雞排','珍珠奶茶','服飾','豆花','補習班','飾品','鞋子','炸物','書局','手搖飲'],SOUTH=['地瓜球','服飾','眼鏡','補習班','文具','雞蛋糕','彩妝','拉麵','炸雞','咖啡'];
+  const SHOPC=['#f3d9b1','#cfe3d3','#e9c9c9','#d9d4ee','#f1e3a7','#c9dcec','#ead2bd','#d7e8c0','#efc8a8','#d3d3d3'],AWN=['#d6452f','#2f8f6b','#f08a24','#3e6fb0','#c43c7a','#8a5a2b'];
+  for(let i=0;i<10;i++){const x0=14+i*8.6,cx=x0+4.2;
+    [[-1,NORTH[i]],[1,SOUTH[i]]].forEach(([s,name],k)=>{const h=8+((i*7+k*3)%5)*1.6,c=SHOPC[(i+k*3)%10],zc=s*11;building(cx,zc,8.2,12,h,c,{col:2.6,win:'#8fb3cf'});
+      box(8.2,.25,2,AWN[(i+k)%6],cx,3.2,s*5.6,{cast:true});
+      signPlane(name,{fg:'#fff',bg:AWN[(i+k*2)%6],size:56,radius:10},cx,4.3,s*5.02,s<0?0:Math.PI,1.05)})}
+  building(60,-45,30,22,28,'#d2d6db',{col:3});label('補習班大樓',60,31,-45,2.2);
+  signPlane('補習班',{fg:'#fff',bg:'#d6452f',size:60,vertical:true,radius:8},44.9,14,-40,-Math.PI/2,7);
+  [[30,-40,20,30,14,'#e0d7c7'],[85,-50,26,40,18,'#d7dbe0'],[35,45,30,26,16,'#e3d8cf'],[75,42,36,30,20,'#d2d9cf'],[25,-72,22,16,12,'#e0d0c0'],[70,-75,36,14,14,'#dcd3c4']].forEach(a=>building(a[0],a[1],a[2],a[3],a[4],a[5]));
+  // 機車停一排
+  const STALL=[21,30,47,22];const sc2=[];for(let x=16;x<98;x+=1.3){if(STALL.some(s=>Math.abs(s-x)<2.2))continue;if(R()<.55)sc2.push([x,-4.4]);if(R()<.55)sc2.push([x,4.4])}
+  const sIM=new THREE.InstancedMesh(GEO.box,mat('#566173'),sc2.length);sc2.forEach(([x,z],i)=>{d.position.set(x,.5,z);d.scale.set(.5,.8,1.6);d.rotation.set(0,0,0);d.updateMatrix();sIM.setMatrixAt(i,d.matrix);obs(x,z,.5,1.4)});
+  sIM.castShadow=true;scene.add(sIM);
+  // 育才街與冰店
+  flat(100,110,-86,46,'#d7cfc0',.03);label('育才街',105,.4,10,1.8,{bg:null,fg:'#5b6876',stroke:'#fff'});
+  building(96,-34,8,12,7,'#f4efe6',{col:2.6});box(2,.25,12,'#2f6fb0',100.9,3,-34,{cast:true});
+  label('一中豐仁冰',100,8.6,-34,1.3,{bg:'#2f6fb0',fg:'#fff',border:'#1c2733'});signPlane('一中豐仁冰',{fg:'#fff',bg:'#2f6fb0',size:56,radius:10},100.05,4.4,-34,Math.PI/2,1.0);
+  // 臺中一中
+  flat(110,158,-84,-16,'#d4dcc6',.025);
+  for(const [z0,z1] of [[-84,-35],[-25,-16]]){box(.6,2,z1-z0,'#a9543d',110.5,1,(z0+z1)/2,{cast:true});obs(110.5,(z0+z1)/2,1,z1-z0)}
+  [-35,-25].forEach(z=>{box(1.4,4,1.4,'#8e4231',110.5,2,z,{cast:true});obs(110.5,z,1.6,1.6)});
+  signPlane('臺中一中',{fg:'#fff',bg:'#8e4231',size:64,radius:8},109.6,4.6,-30,-Math.PI/2,1.3);label('臺中一中 校門',110.5,7,-30,1.3,{bg:'#8e4231',fg:'#fff',border:'#1c2733'});
+  building(140,-50,30,16,12,'#b55a40',{win:'#e9e2d0',band:'#f1e9dc',col:3});obs(140,-50,30,16);label('臺中一中',140,15.5,-50,2.4);
+  [[135,10,40,40,14,'#dcd4c8'],[135,-110,50,30,16,'#d9dde2'],[60,-112,60,30,20,'#e2d8cc'],[130,62,40,24,12,'#d7cfc6']].forEach(a=>building(a[0],a[1],a[2],a[3],a[4],a[5]));
+  // 中友百貨
+  flat(-24,-13,-145,-95,'#e6ddcd',.03);
+  const cy=building(-50,-120,52,50,34,'#efe9df',{col:6,win:'#c9d9e6',band:'#d6452f'});obs(-50,-120,52,50);
+  signPlane('中友百貨',{fg:'#fff',bg:'#d6452f',size:70,vertical:true,radius:10},-23.85,20,-108,Math.PI/2,14);
+  box(4,.4,12,'#d6452f',-22,4.2,-120,{cast:true});[[-20.4,-125.6],[-20.4,-114.4]].forEach(([x,z])=>{box(.4,4,.4,'#8a8f96',x,2,z,{cast:true});obs(x,z,.5,.5)});
+  label('中友百貨',-50,38,-120,3);
+  for(let i=0;i<6;i++){const p=person({top:pick(['#6a8caf','#b05a9a','#e3a857','#5aa35a','#d6452f']),pants:'#333',hair:pick(['#222','#4a3020','#888']),long:R()<.5});p.position.set(-15.5,0,-121-i*1.2);p.rotation.y=Math.PI;scene.add(p)}
+  // 其他街區
+  [[-75,-82,100,18,16,'#ddd5c8'],[-60,80,90,18,14,'#d8d2c8'],[-150,-10,30,150,12,'#d9d3c9'],[-45,-160,50,26,14,'#dcd6cc'],[40,-140,40,30,18,'#d4d8dc'],[40,80,50,20,12,'#e0d6cb'],[170,-40,24,120,14,'#d8d0c4']].forEach(a=>building(a[0],a[1],a[2],a[3],a[4],a[5]));
+  // 紅綠燈
+  CROSS.forEach(c=>{[[-10.6,c.z1+1.4,0],[10.6,c.z0-1.4,Math.PI]].forEach(([x,z,ry])=>{box(.25,4.6,.25,'#5d646b',x,2.3,z,{cast:true});obs(x,z,.4,.4);
+    const car=box(.5,1.4,.5,'#2b3036',x+(x<0?1.2:-1.2),4.4,z);box(2.4,.18,.18,'#5d646b',x+(x<0?.6:-.6),4.6,z);
+    const lamps=['#ff4b3a','#ffc23a','#3ee07a'].map((col,i)=>{const m=new THREE.Mesh(GEO.sph,new THREE.MeshBasicMaterial({color:'#333'}));m.scale.set(.28,.28,.28);m.position.set(car.position.x,4.85-i*.42,z+(x<0?-.28:.28));scene.add(m);return {m,col}});
+    const ped=new THREE.Mesh(GEO.plane,new THREE.MeshBasicMaterial({color:'#333'}));ped.scale.set(.5,.7,1);ped.position.set(x+(x<0?.18:-.18),3,z);ped.rotation.y=x<0?Math.PI/2:-Math.PI/2;scene.add(ped);
+    box(.3,.85,.6,'#2b3036',x,3,z);LIGHTS.push({lamps,ped})})});
+  // 記憶光點
+  const glow=canvasTex(128,128,(g)=>{const gr=g.createRadialGradient(64,64,4,64,64,64);gr.addColorStop(0,'rgba(255,255,220,1)');gr.addColorStop(.35,'rgba(140,240,255,.7)');gr.addColorStop(1,'rgba(140,240,255,0)');g.fillStyle=gr;g.fillRect(0,0,128,128)});
+  const oct=new THREE.OctahedronGeometry(.55,0);
+  STORIES.forEach(s=>{const g=new THREE.Group();const m=new THREE.Mesh(oct,new THREE.MeshBasicMaterial({color:'#8ff4ff'}));m.scale.set(1,1.5,1);g.add(m);
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glow,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));sp.scale.set(3.4,3.4,1);g.add(sp);
+    g.position.set(s.x,1.6,s.z);scene.add(g);s.obj=g;s.core=m});
+}
+
+/* ============ 遊戲狀態 ============ */
+const W={};
+const S={found:0,got:{},hasMap:false,money:200,eaten:[],flyers:0,jay:0,red:0,t0:0,ended:false};
+let P=null,player=null,actors=[],vehicles=[],running=false,paused=false,last=0,clock=0,keys={},joy=null,camZoom=1,onRoad=false,roadWarned=false,nearT=null;
+
+function initActors(){
+  player=person({top:'#2f4b7c',pants:'#c8b48a',hair:'#2a1d18',bag:'#f08a24'});scene.add(player);P={x:-11.2,z:14,rot:Math.PI,moving:false};
+  NPCS.forEach(n=>{const g=n.cat?catModel():person(n.look);g.position.set(n.x,0,n.z);g.rotation.y=n.face||0;scene.add(g);
+    const tag=label(n.name,n.x,n.cat?1.8:3.1,n.z,.75,{bg:'rgba(28,39,51,.85)',fg:'#fff',border:null,size:44,pad:10});
+    actors.push({n,g,tag,x:n.x,z:n.z,pi:0,wait:0,talk:0})});
+}
+
+/* ============ 車流與紅綠燈 ============ */
+const CYCLE=22;
+function lightState(){const t=clock%CYCLE;if(t<10)return {car:'green',ped:'stop'};if(t<12.5)return {car:'yellow',ped:'stop'};if(t<19)return {car:'red',ped:'walk'};return {car:'red',ped:'flash'}}
+const LANES=[{x:-6.5,dir:1},{x:-2.5,dir:1},{x:2.5,dir:-1},{x:6.5,dir:-1}];
+function makeVehicle(lane){const scooter=R()<.45;const g=new THREE.Group();const col=pick(['#e9e9e9','#d6452f','#2f4b7c','#1f1f1f','#7c8a96','#f0c33c','#5aa35a']);
+  if(scooter){box(.6,.7,1.7,col,0,.55,0,{cast:true,parent:g});const r=person({top:pick(['#3a6ea5','#d6452f','#444','#e3a857']),pants:'#333',hair:'#222'});r.scale.set(.8,.8,.8);r.position.set(0,.2,-.1);g.add(r);
+    const helm=new THREE.Mesh(GEO.sph,mat(pick(['#f2f2f2','#d6452f','#2f2f2f','#f0c33c'])));helm.scale.set(.66,.6,.66);helm.position.set(0,1.95,-.12);g.add(helm)}
+  else{box(1.9,.8,4.2,col,0,.75,0,{cast:true,parent:g});box(1.7,.7,2.2,shade(col,.25),0,1.5,-.2,{parent:g});box(1.6,.5,.05,'#9fc3dd',0,1.55,.92,{parent:g});
+    [[-.95,1.3],[.95,1.3],[-.95,-1.3],[.95,-1.3]].forEach(([x,z])=>box(.25,.6,.6,'#222',x,.3,z,{parent:g}))}
+  const z=lane.dir>0?ROAD.z0+2:ROAD.z1-2;g.position.set(lane.x,0,z);g.rotation.y=lane.dir>0?0:Math.PI;scene.add(g);
+  return {g,lane,z,len:scooter?1.8:4.3,v:scooter?11:10,vmax:(scooter?11:9.5)+R()*2.5,honkT:0}}
+function updateVehicles(dt){const ls=lightState();
+  LANES.forEach(l=>{l.t=(l.t||R()*3)-dt;if(l.t<=0){l.t=2.2+R()*3.5;const tail=vehicles.filter(v=>v.lane===l).sort((a,b)=>l.dir>0?a.z-b.z:b.z-a.z)[0];if(!tail||Math.abs(tail.z-(l.dir>0?ROAD.z0:ROAD.z1))>9)vehicles.push(makeVehicle(l))}});
+  for(const v of vehicles){const d=v.lane.dir,front=v.z+d*v.len/2;let want=v.vmax;
+    for(const c of CROSS){const line=d>0?c.z0-1.8:c.z1+1.8;const dist=(line-front)*d;if(dist<=-.3){if(v.commit===c)v.commit=null;continue}
+      if(ls.car==='green'||v.commit===c)continue;const need=v.v*v.v/(2*14);if(dist<need&&v.v>2.5){v.commit=c;continue}want=Math.min(want,Math.sqrt(Math.max(0,2*10*(dist-.4))))}
+    for(const o of vehicles){if(o===v||o.lane!==v.lane)continue;const gap=(o.z-v.z)*d-(o.len+v.len)/2;if(gap>-1&&gap<30)want=Math.min(want,Math.max(0,(gap-2.2)*1.4))}
+    if(Math.abs(P.x-v.lane.x)<1.9){const gap=(P.z-v.z)*d-v.len/2;if(gap>-.5&&gap<9){want=0;v.honkT-=dt;if(v.honkT<=0&&gap<7){v.honkT=2.5;AU.honk()}}}
+    v.v+=clamp(want-v.v,-14*dt,6*dt);v.z+=d*v.v*dt;v.g.position.z=v.z}
+  vehicles=vehicles.filter(v=>{const out=v.lane.dir>0?v.z>ROAD.z1+4:v.z<ROAD.z0-4;if(out)scene.remove(v.g);return !out});
+  const t=clock%CYCLE,fl=ls.ped==='flash'&&Math.floor(t*3)%2===0;
+  LIGHTS.forEach(L=>{L.lamps[0].m.material.color.set(ls.car==='red'?L.lamps[0].col:'#3a3a3a');L.lamps[1].m.material.color.set(ls.car==='yellow'?L.lamps[1].col:'#3a3a3a');L.lamps[2].m.material.color.set(ls.car==='green'?L.lamps[2].col:'#3a3a3a');
+    L.ped.material.color.set(ls.ped==='walk'||(ls.ped==='flash'&&!fl)?'#3ee07a':ls.ped==='flash'?'#1f5a33':'#ff4b3a')});
+}
+
+/* ============ 輸入 ============ */
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();
+  if(!$('dlg').hidden){if([' ','enter','e'].includes(k)){e.preventDefault();dlgNext()}else{const n='1234'.indexOf(k);if(n>=0){const b=$('dlgChoices').querySelectorAll('button')[n];if(b&&!b.disabled)b.click()}}return}
+  if(k==='m'){toggleMap();return}
+  if(k==='escape'&&!$('mapWrap').hidden){toggleMap(false);return}
+  if((k==='e'||k===' '||k==='enter')&&running){e.preventDefault();interact();return}
+  keys[k]=true;if(k.startsWith('arrow'))e.preventDefault()});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
+addEventListener('wheel',e=>{camZoom=clamp(camZoom+e.deltaY*.0008,.6,1.6)},{passive:true});
+(function(){const J=$('joy'),K=J.querySelector('i');let id=null;
+  J.addEventListener('pointerdown',e=>{id=e.pointerId;J.setPointerCapture(id);move(e)});
+  J.addEventListener('pointermove',e=>{if(e.pointerId===id)move(e)});
+  const up=e=>{if(e.pointerId!==id)return;id=null;joy=null;K.style.transform=''};J.addEventListener('pointerup',up);J.addEventListener('pointercancel',up);
+  function move(e){const r=J.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const L=Math.hypot(dx,dy),m=r.width/2-14;if(L>m){dx*=m/L;dy*=m/L}K.style.transform=`translate(${dx}px,${dy}px)`;joy={x:dx/m,y:dy/m}}})();
+$('act').onclick=()=>{AU.init();interact()};
+$('mapBtn').onclick=()=>toggleMap();$('mapClose').onclick=()=>toggleMap(false);
+$('mapWrap').addEventListener('click',e=>{if(e.target===$('mapWrap'))toggleMap(false)});
+$('sndBtn').onclick=()=>{AU.init();AU.setOn(!AU.on);syncSnd()};
+function syncSnd(){$('sndBtn').textContent=AU.on?'聲音 開':'聲音 關';$('sndBtn').classList.toggle('off',!AU.on)}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)keys={}});
+
+/* ============ 對話 ============ */
+let DQ=null;
+function openDialog(name,lines,opt){DQ={name,lines:lines.slice(),i:0,opt:opt||{}};paused=true;keys={};joy=null;$('dlg').hidden=false;$('prompt').hidden=true;showLine()}
+function showLine(){const q=DQ;$('dlgName').textContent=q.name;$('dlgText').textContent=q.lines[q.i];AU.blip();
+  const last=q.i===q.lines.length-1,ch=$('dlgChoices');ch.innerHTML='';
+  if(last&&q.opt.choices){$('dlgNext').hidden=true;q.opt.choices.forEach((c,i)=>{const b=document.createElement('button');b.innerHTML=`<span>${i+1}. ${esc(c.l)}</span><span>${esc(c.r||'')}</span>`;b.disabled=!!c.dis;b.onclick=()=>{closeDialog();c.f&&c.f()};ch.appendChild(b)})}
+  else $('dlgNext').hidden=false}
+function dlgNext(){if(!DQ)return;if(DQ.opt.choices&&DQ.i===DQ.lines.length-1)return;if(DQ.i<DQ.lines.length-1){DQ.i++;showLine();return}const f=DQ.opt.after;closeDialog();f&&f()}
+function closeDialog(){DQ=null;$('dlg').hidden=true;paused=false;talkCD=.35;last=performance.now()}
+$('dlgNext').onclick=dlgNext;$('dlg').addEventListener('click',e=>{if(e.target.closest('.choices')||e.target===$('dlgNext'))return;dlgNext()});
+
+function talkTo(a){const n=a.n,r=n.say(S);a.talk=4;
+  if(n.shop){const opts=n.shop.map(k=>{const f=FOOD[k];return {l:`買一份${f.n}`,r:`NT$${f.p}`,dis:S.money<f.p,f:()=>buy(k,a)}});opts.push({l:'先不用，謝謝',f:()=>{}});openDialog(n.name,r.lines,{choices:opts});return}
+  openDialog(n.name,r.lines,{after:()=>{if(r.then==='map'&&!S.hasMap){S.hasMap=true;$('mapBtn').hidden=false;AU.coin();toast('拿到「三民路百年地圖」！按 M 打開')}if(r.then==='end')showEnd()}})}
+function buy(k,a){const f=FOOD[k];if(S.money<f.p){toast('零用錢不夠了');return}S.money-=f.p;S.eaten.push(f.n);AU.coin();hud();openDialog(a.n.name,[`${f.say}`,`（零用錢剩 NT$${S.money}。）`])}
+
+function interact(){if(!running||paused||talkCD>0)return;const t=nearest();if(t)talkTo(t);else toast('附近沒有人可以說話')}
+function nearest(){let best=null,bd=3.2;for(const a of actors){const d=Math.hypot(a.x-P.x,a.z-P.z);if(d<bd){bd=d;best=a}}return best}
+
+/* ============ 收集 ============ */
+function collect(s){S.got[s.id]=true;S.found++;s.obj.visible=false;AU.chime();hud();
+  openDialog(`百年記憶　${S.found}/${STORIES.length}`,[`「${s.title}」`].concat(s.lines),{after:()=>{if(S.found===STORIES.length)toast('6 個記憶都找齊了！回校門口找學伴小芸')}})}
+
+/* ============ 地圖 ============ */
+const MB={x0:-132,x1:162,z0:-168,z1:92};
+function toggleMap(v){if(!S.hasMap&&v!==false){toast('先去校門口找學伴小芸拿地圖');return}const show=v===undefined?$('mapWrap').hidden:v;$('mapWrap').hidden=!show;paused=show||!$('dlg').hidden;if(show)drawMap();last=performance.now()}
+function drawMap(){const c=$('map'),g=c.getContext('2d'),W0=c.width,H0=c.height,sx=W0/(MB.x1-MB.x0),sz=H0/(MB.z1-MB.z0);const X=x=>(x-MB.x0)*sx,Z=z=>(z-MB.z0)*sz;
+  g.fillStyle='#e7ecdf';g.fillRect(0,0,W0,H0);
+  const rect=(x0,x1,z0,z1,col)=>{g.fillStyle=col;g.fillRect(X(x0),Z(z0),(x1-x0)*sx,(z1-z0)*sz)};
+  rect(-128,-13,-68,68,'#bfe0ae');rect(ROAD.x0,ROAD.x1,ROAD.z0,ROAD.z1,'#7b838c');rect(-13,-9,ROAD.z0,ROAD.z1,'#efe9dd');rect(9,13,ROAD.z0,ROAD.z1,'#efe9dd');
+  rect(13,100,-5,5,'#f0dfbf');rect(100,110,-86,46,'#efe9dd');rect(110,158,-84,-16,'#dbe5cf');rect(-24,-13,-145,-95,'#efe9dd');
+  CROSS.forEach(cw=>{for(let x=-8.4;x<8.5;x+=2.8)rect(x,x+1.4,cw.z0,cw.z1,'#fff')});
+  const blocks=[[-76,-24,-145,-95,'#e9a89c'],[14,99,-17,-5,'#e4d6c2'],[14,99,5,17,'#e4d6c2'],[92,100,-40,-28,'#9cc0e6'],[125,155,-58,-42,'#d39a86']];
+  CAMPUS.forEach(b=>blocks.push([b.x-b.w/2,b.x+b.w/2,b.z-b.d/2,b.z+b.d/2,'#f2efe8']));
+  blocks.forEach(b=>{rect(b[0],b[1],b[2],b[3],b[4]);g.strokeStyle='rgba(28,39,51,.35)';g.lineWidth=1.5;g.strokeRect(X(b[0]),Z(b[2]),(b[1]-b[0])*sx,(b[3]-b[2])*sz)});
+  g.fillStyle='#1c2733';g.textAlign='center';g.textBaseline='middle';
+  const txt=(t,x,z,s)=>{g.font=`900 ${s||22}px ${FONT}`;g.lineWidth=5;g.strokeStyle='rgba(255,255,255,.85)';g.strokeText(t,X(x),Z(z));g.fillText(t,X(x),Z(z))};
+  CAMPUS.forEach(b=>txt(b.n,b.x,b.z,20));txt('中友百貨',-50,-120,26);txt('一中街',56,0,22);txt('育才街',105,24,18);txt('臺中一中',140,-50,22);txt('一中豐仁冰',96,-46,16);txt('校門',-20,0,18);txt('臺中科大三民校區',-70,60,22);
+  g.save();g.translate(X(0),Z(70));g.rotate(-Math.PI/2);g.font=`900 20px ${FONT}`;g.fillStyle='#fff';g.fillText('三民路三段',0,0);g.restore();
+  STORIES.forEach(s=>{const x=X(s.x),y=Z(s.z);g.font=`900 26px ${FONT}`;g.lineWidth=4;g.strokeStyle='#1c2733';g.fillStyle=S.got[s.id]?'#f2c14e':'#3ec8d8';const ch=S.got[s.id]?'★':'◆';g.strokeText(ch,x,y);g.fillText(ch,x,y)});
+  g.fillStyle='#d6452f';g.beginPath();g.arc(X(P.x),Z(P.z),9,0,7);g.fill();g.strokeStyle='#fff';g.lineWidth=3;g.stroke();
+  g.fillStyle='rgba(28,39,51,.7)';g.font=`500 16px ${FONT}`;g.textAlign='left';g.fillText('↑ 北',12,22)}
+
+/* ============ HUD ============ */
+function zoneAt(x,z){for(const zn of ZONES)if(x>=zn.x0&&x<=zn.x1&&z>=zn.z0&&z<=zn.z1)return [zn.n,zn.s];
+  if(x<-13&&x>-130&&Math.abs(z)<70){let b=null,bd=22;CAMPUS.forEach(c=>{const d=Math.max(Math.abs(x-c.x)-c.w/2,Math.abs(z-c.z)-c.d/2);if(d<bd){bd=d;b=c}});return [b?b.n:(Math.abs(z)<12&&x>-36?'校門口':'臺中科大三民校區'),'國立臺中科技大學']}
+  return ['三民路一帶','臺中市北區']}
+let lastZone='';
+function hud(){$('found').textContent=`${S.found}/${STORIES.length}`;$('money').textContent=S.money}
+
+/* ============ 主迴圈 ============ */
+const CAMOFF={x:9,y:24,z:19},camT={x:0,z:0};let talkCD=0;
+const ray=new THREE.Ray(),hitV=new THREE.Vector3(),headV=new THREE.Vector3();
+function fadeOccluders(dt){headV.set(P.x,1.4,P.z);ray.origin.copy(camera.position);ray.direction.copy(headV).sub(camera.position);const dist=ray.direction.length();ray.direction.normalize();
+  const cpx=camera.position.x,cpz=camera.position.z;
+  for(const o of OCC){const under=cpx>o.box.min.x-3&&cpx<o.box.max.x+3&&cpz>o.box.min.z-3&&cpz<o.box.max.z+3;const hit=under||(ray.intersectBox(o.box,hitV)&&hitV.distanceTo(camera.position)<dist-.5);const t=hit?.2:1;if(Math.abs(o.a-t)<.01)continue;o.a+=(t-o.a)*Math.min(1,dt*8);if(Math.abs(o.a-t)<.02)o.a=t;
+    const tr=o.a<.99;for(const m of o.mats){m.opacity=o.a;if(m.transparent!==tr){m.transparent=tr;m.depthWrite=!tr;m.needsUpdate=true}}}}
+function update(dt){clock+=dt;if(talkCD>0)talkCD-=dt;
+  updateVehicles(dt);
+  // 角色走動
+  let ix=0,iz=0;if(!paused){if(keys.arrowleft||keys.a)ix-=1;if(keys.arrowright||keys.d)ix+=1;if(keys.arrowup||keys.w)iz-=1;if(keys.arrowdown||keys.s)iz+=1;if(joy){ix=joy.x;iz=joy.y}}
+  const L=Math.hypot(ix,iz);P.moving=L>.15;
+  if(P.moving){const sp=7*Math.min(1,L),nx=ix/Math.max(1,L),nz=iz/Math.max(1,L);const r=.42;
+    const tx=P.x+nx*sp*dt,tz=P.z+nz*sp*dt;if(canStand(tx,P.z,r))P.x=tx;if(canStand(P.x,tz,r))P.z=tz;
+    const want=Math.atan2(nx,nz);let dr=want-P.rot;while(dr>Math.PI)dr-=Math.PI*2;while(dr<-Math.PI)dr+=Math.PI*2;P.rot+=dr*Math.min(1,dt*12)}
+  player.position.set(P.x,0,P.z);player.rotation.y=P.rot;animPerson(player,clock,P.moving);
+  // 過馬路規則
+  const nowRoad=P.x>ROAD.x0+.2&&P.x<ROAD.x1-.2;
+  if(nowRoad&&!onRoad){const cw=CROSS.find(c=>P.z>c.z0-.6&&P.z<c.z1+.6),ls=lightState();
+    if(!cw){S.jay++;AU.whistle();toast('交通志工：同學，請走斑馬線喔！')}
+    else if(ls.ped==='stop'){S.red++;AU.whistle();toast('交通志工：行人紅燈，等小綠人再過！')}}
+  onRoad=nowRoad;
+  // NPC
+  for(const a of actors){const n=a.n;let moving=false;
+    if(a.talk>0){a.talk-=dt;const ang=Math.atan2(P.x-a.x,P.z-a.z);a.g.rotation.y=ang}
+    else if(n.path){const tgt=n.path[a.pi];const dx=tgt[0]-a.x,dz=tgt[1]-a.z,d=Math.hypot(dx,dz);
+      if(a.wait>0)a.wait-=dt;else if(d<.2){a.pi=(a.pi+1)%n.path.length;a.wait=1.5+R()*2}else{const s=(n.cat?1.6:1.2)*dt;a.x+=dx/d*Math.min(s,d);a.z+=dz/d*Math.min(s,d);a.g.rotation.y=Math.atan2(dx,dz);moving=true}}
+    a.g.position.set(a.x,0,a.z);a.tag.position.set(a.x,n.cat?1.8:3.1,a.z);animPerson(a.g,clock+a.x,moving)}
+  // 光點
+  for(const s of STORIES){if(S.got[s.id])continue;s.obj.position.y=1.6+Math.sin(clock*2+s.x)*.25;s.core.rotation.y+=dt*1.6;
+    if(!paused&&Math.hypot(s.x-P.x,s.z-P.z)<1.5){collect(s);break}}
+  // 互動提示
+  const nt=paused?null:nearest();if(nt!==nearT){nearT=nt;const pr=$('prompt');if(nt){pr.innerHTML=`<kbd>E</kbd>和${esc(nt.n.name)}說話`;pr.hidden=false;$('act').textContent='說話'}else pr.hidden=true}
+  // 區域
+  const [zn,zs]=zoneAt(P.x,P.z),key=zn+zs;if(key!==lastZone){lastZone=key;$('zone').innerHTML=`${esc(zn)}<small>${esc(zs)}</small>`}
+  // 鏡頭
+  const k=Math.min(1,dt*5);camT.x+=(P.x-camT.x)*k;camT.z+=(P.z-1.5-camT.z)*k;
+  camera.position.set(camT.x+CAMOFF.x*camZoom,CAMOFF.y*camZoom,camT.z+CAMOFF.z*camZoom);camera.lookAt(camT.x,0,camT.z);
+  W.sun.position.set(P.x+40,80,P.z+30);W.sun.target.position.set(P.x,0,P.z);
+  fadeOccluders(dt);
+}
+function frame(now){if(!running)return;const dt=Math.min(.05,(now-last)/1000);last=now;update(dt);renderer.render(scene,camera);requestAnimationFrame(frame)}
+
+/* ============ 開始與結束 ============ */
+function fmtT(ms){const s=Math.round(ms/1000);return `${Math.floor(s/60)} 分 ${String(s%60).padStart(2,'0')} 秒`}
+function renderStart(){const best=store('sm_best');
+  $('start').innerHTML=`<div class="card">
+    <div class="form-head"><span>新生報到單</span><dl><dt>報到日</dt><dd>開學第一天</dd><dt>地點</dt><dd>三民校區</dd></dl></div>
+    <div class="stamp" aria-hidden="true">歡迎<br>報到</div>
+    <p class="eyebrow">國立臺中科技大學・三民校區</p>
+    <h1 class="title">三民路<br><em>129</em> 號</h1>
+    <p class="lede">開學第一天。學伴小芸在校門口等你，要你把三民路一帶的 6 個「百年記憶」找回來：校園、一中街、育才街，還有中友百貨。</p>
+    <ul class="rows">
+      <li><b>移動</b><span>方向鍵或 WASD；手機用左下角搖桿</span></li>
+      <li><b>說話</b><span>靠近人按 E 或空白鍵；手機按右下角「說話」</span></li>
+      <li><b>地圖</b><span>拿到地圖後按 M</span></li>
+      <li><b>過馬路</b><span>三民路車很多，走斑馬線、等小綠人</span></li>
+      <li><b>零用錢</b><span>NT$200，可以在一中街買吃的</span></li>
+    </ul>
+    <button class="go" id="goBtn">走進校門</button>
+    <p class="fine">非官方作品，與國立臺中科技大學、中友百貨、各店家無關。地圖為示意，不照比例；人物是虛構的。${best?`你最快的紀錄：${esc(best)}。`:''}</p>
+  </div>`;
+  $('start').hidden=false;$('goBtn').onclick=start}
+function start(){AU.init();AU.bgm();syncSnd();hud();$('start').hidden=true;$('hud').hidden=false;
+  if(matchMedia('(hover:none),(pointer:coarse)').matches){$('joy').hidden=false;$('act').hidden=false}
+  S.t0=performance.now();running=true;paused=false;last=performance.now();requestAnimationFrame(frame);
+  setTimeout(()=>toast('學伴小芸在校門口內側等你'),600)}
+function showEnd(){if(S.ended)return;S.ended=true;running=false;AU.fanfare();const ms=performance.now()-S.t0,t=fmtT(ms);
+  const prev=+store('sm_best_ms')||0;if(!prev||ms<prev){store('sm_best_ms',Math.round(ms));store('sm_best',t)}
+  const srcKeys=[...new Set(STORIES.flatMap(s=>s.src).concat(['tcfsh']))];
+  $('end').innerHTML=`<div class="card">
+    <div class="form-head"><span>報到完成</span><dl><dt>用時</dt><dd>${t}</dd></dl></div>
+    <div class="stamp" aria-hidden="true">報到<br>完成</div>
+    <p class="eyebrow">國立臺中科技大學・三民校區</p>
+    <h1 class="title">歡迎<br><em>報到</em></h1>
+    <p class="lede">你把三民路 129 號、一中街、育才街和中友百貨都走了一遍，找回了 6 個百年記憶。</p>
+    <div class="stats">
+      <div><b>${S.found}/${STORIES.length}</b>百年記憶</div>
+      <div><b>${S.eaten.length}</b>一中街吃了幾樣</div>
+      <div><b>${S.flyers}</b>補習班傳單</div>
+      <div><b>${S.jay+S.red}</b>被交通志工叫住</div>
+    </div>
+    <ol class="list">${STORIES.map(s=>`<li><b>${esc(s.title)}</b>：${esc(s.lines[0])}</li>`).join('')}</ol>
+    ${S.eaten.length?`<p class="lede">一中街：${esc(S.eaten.join('、'))}。零用錢剩 NT$${S.money}。</p>`:'<p class="lede">你一樣都沒吃。下次記得留點時間給一中街。</p>'}
+    <div class="btnrow"><button class="go" id="againBtn">再逛一次</button></div>
+    <p class="src">資料來源：${srcKeys.map(k=>`<a href="${SRC[k].u}" target="_blank" rel="noopener">${esc(SRC[k].t)}</a>`).join('、')}</p>
+    <p class="fine">非官方作品。地圖為示意，不照比例；人物是虛構的；一中街的價格是遊戲設定。</p>
+  </div>`;
+  $('end').hidden=false;$('hud').hidden=true;$('joy').hidden=true;$('act').hidden=true;$('prompt').hidden=true;
+  $('againBtn').onclick=()=>location.reload()}
+
+/* ============ 啟動 ============ */
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<h?62:48;camera.updateProjectionMatrix()}
+async function boot(){
+  if(!window.THREE){$('loading').textContent='3D 函式庫載入失敗，請重新整理再試一次。';return}
+  try{await Promise.race([document.fonts.load(`900 64px "Noto Sans TC"`),new Promise(r=>setTimeout(r,2500))])}catch(e){}
+  renderer=new THREE.WebGLRenderer({canvas:$('cv'),antialias:true});renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));renderer.shadowMap.enabled=true;renderer.shadowMap.type=Math.min(innerWidth,innerHeight)<700?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;
+  const gm=new THREE.DataTexture(new Uint8Array([120,190,240]),3,1,renderer.capabilities.isWebGL2?THREE.RedFormat:THREE.LuminanceFormat);gm.minFilter=gm.magFilter=THREE.NearestFilter;gm.needsUpdate=true;TOON=gm;
+  scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(48,1,.5,600);
+  buildWorld();initActors();resize();addEventListener('resize',resize);
+  camT.x=P.x;camT.z=P.z-1.5;camera.position.set(camT.x+CAMOFF.x,CAMOFF.y,camT.z+CAMOFF.z);camera.lookAt(camT.x,0,camT.z);W.sun.target.position.set(P.x,0,P.z);
+  renderer.render(scene,camera);$('loading').hidden=true;renderStart();
+  window.__g={S,P,STORIES,actors,teleport(x,z){P.x=x;P.z=z},lightState,get vehicles(){return vehicles},showEnd,step(n,dt){for(let i=0;i<n;i++)update(dt||1/30)},hold(k,v){keys[k]=v}};
+}
+boot();
+</script>
+</body>
+</html>
