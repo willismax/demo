@@ -1,0 +1,1669 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>二元樹 3D 實驗室</title>
+<meta name="description" content="用 3D 動畫看懂二元樹的前序、中序、後序、層序走訪，並一步步由走訪序列反推出原本的樹，附 Python、C、Java 程式碼。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+/* Layout: mode rail across the top → [3D stage + narration + transport | code + theory], one column under 1060px. Same visual system as the sorting lab. */
+:root{
+  --bg:#E7EBF2; --surface:#F8FAFD; --surface-2:#EEF2F8; --ink:#141B2D; --muted:#59647A; --line:#D1D8E4;
+  --accent:#2C54D6; --accent-ink:#FFFFFF;
+  --cmp:#E7A400; --pivot:#C23AD9; --done:#1FA85B; --bad:#E2412F;
+  --left:#2F7EEA; --right:#E0772A;
+  --stage-a:#D9E0EC; --stage-b:#F4F7FB; --floor:#CBD3E1; --tile:#B6C1D4; --tile-range:#9DB0E8;
+  --code-bg:#F3F6FA; --code-hot:#FFF0B8; --code-hot-bar:#E7A400;
+  --tok-kw:#A8237A; --tok-fn:#2145B5; --tok-num:#B04F08; --tok-str:#2D7A31; --tok-com:#7A8497;
+  --font-display:"Bricolage Grotesque","Noto Sans TC",system-ui,sans-serif;
+  --font-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --radius:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D121C; --surface:#141B28; --surface-2:#1A2232; --ink:#E4E9F3; --muted:#8D98AD; --line:#263043;
+    --accent:#7F9BFF; --accent-ink:#0D121C;
+    --cmp:#FFC23A; --pivot:#E072F4; --done:#3CD58A; --bad:#FF6A55;
+    --left:#6FA8FF; --right:#FF9A52;
+    --stage-a:#090D15; --stage-b:#18202F; --floor:#1C2434; --tile:#2A3447; --tile-range:#34488A;
+    --code-bg:#10161F; --code-hot:#3A3115; --code-hot-bar:#FFC23A;
+    --tok-kw:#F28BC6; --tok-fn:#8FB0FF; --tok-num:#F3A75F; --tok-str:#8DD592; --tok-com:#68748A;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D121C; --surface:#141B28; --surface-2:#1A2232; --ink:#E4E9F3; --muted:#8D98AD; --line:#263043;
+  --accent:#7F9BFF; --accent-ink:#0D121C;
+  --cmp:#FFC23A; --pivot:#E072F4; --done:#3CD58A; --bad:#FF6A55;
+  --left:#6FA8FF; --right:#FF9A52;
+  --stage-a:#090D15; --stage-b:#18202F; --floor:#1C2434; --tile:#2A3447; --tile-range:#34488A;
+  --code-bg:#10161F; --code-hot:#3A3115; --code-hot-bar:#FFC23A;
+  --tok-kw:#F28BC6; --tok-fn:#8FB0FF; --tok-num:#F3A75F; --tok-str:#8DD592; --tok-com:#68748A;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.6;
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:14px 32px;
+}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1500px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.top > *{min-width:0}
+
+/* ---------- header ---------- */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 28px}
+.brand{display:grid;gap:2px}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.brand h1{margin:0;font-family:var(--font-display);font-weight:800;font-size:clamp(24px,2.8vw,34px);line-height:1.1;letter-spacing:-.01em;text-wrap:balance}
+.brand h1 b{color:var(--accent);font-weight:800}
+.modes{display:flex;align-items:flex-end;gap:0;overflow-x:auto;max-width:100%;scrollbar-width:thin;border-bottom:1px solid var(--line)}
+.mode-group{display:flex;align-items:flex-end}
+.mode-group + .mode-group{margin-left:10px;padding-left:10px;border-left:1px solid var(--line)}
+.mode-cap{flex:none;font-size:11px;letter-spacing:.08em;color:var(--muted);padding:0 6px 10px 2px;writing-mode:horizontal-tb}
+.mode-tab{flex:none;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;padding:6px 12px 8px;cursor:pointer;display:grid;gap:0;text-align:left;color:var(--muted);transition:color .15s,border-color .15s}
+.mode-tab .zh{font-weight:700;font-size:15px;line-height:1.3;white-space:nowrap}
+.mode-tab .en{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.02em;opacity:.85;white-space:nowrap}
+.mode-tab:hover{color:var(--ink)}
+.mode-tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.mode-tab[aria-selected="true"] .en{color:var(--accent);opacity:1}
+
+/* ---------- main grid ---------- */
+.grid{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:1060px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:grid;gap:12px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);min-width:0}
+
+/* ---------- stage ---------- */
+.stage{position:relative;height:clamp(360px,62vh,740px);border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);
+  background:radial-gradient(120% 90% at 50% 18%,var(--stage-b) 0%,var(--stage-a) 70%)}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.stage canvas.on-node{cursor:pointer}
+.hud{position:absolute;pointer-events:none;display:flex;gap:8px}
+.hud > *{pointer-events:auto}
+.chip{background:color-mix(in srgb,var(--surface) 80%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid color-mix(in srgb,var(--line) 85%,transparent);border-radius:10px;padding:8px 12px}
+.hud-tl{top:12px;left:12px;flex-direction:column;align-items:flex-start}
+.hud-title{display:grid;gap:0}
+.hud-title .zh{font-weight:900;font-size:19px;line-height:1.25}
+.hud-title .en{font-family:var(--font-display);font-size:12.5px;color:var(--muted);font-weight:500}
+.hud-tr{top:12px;right:12px;flex-wrap:wrap;justify-content:flex-end;max-width:60%}
+.stat{display:grid;gap:0;text-align:right;min-width:64px}
+.stat .k{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.stat .v{font-family:var(--font-display);font-weight:700;font-size:22px;line-height:1.15;font-variant-numeric:tabular-nums}
+.hud-bl{left:12px;bottom:12px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted)}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.hud-br{right:12px;bottom:12px}
+.trick{font-size:12.5px;color:var(--muted);display:grid;gap:4px;max-width:240px}
+.trick b{color:var(--ink)}
+.trick-row{display:flex;gap:10px;flex-wrap:wrap}
+.trick-row span{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12px}
+.trick-row span i{width:9px;height:9px;border-radius:50%;background:var(--muted);opacity:.5;display:inline-block}
+.trick-row span.on{color:var(--ink);font-weight:600}
+.trick-row span.on i{background:var(--done);opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,var(--done) 30%,transparent)}
+@media (max-width:760px){.hud-br{display:none}}
+@media (max-width:560px){.hud-tl{display:none}.hud-tr{max-width:100%}}
+.tip{position:absolute;pointer-events:none;font-family:var(--font-mono);font-size:12.5px;padding:5px 9px;border-radius:7px;background:var(--ink);color:var(--surface);white-space:nowrap;transform:translate(-50%,calc(-100% - 14px));z-index:3}
+.nogl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--muted)}
+
+/* ---------- narration + strips ---------- */
+.narr{padding:12px 16px;display:grid;gap:10px}
+.narr-row{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.narr-step{font-family:var(--font-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.narr-text{font-size:16px;font-weight:500;min-width:0;flex:1 1 280px}
+.narr-text.chal{color:var(--accent);font-weight:700}
+.strips{display:grid;gap:6px}
+.strip{display:flex;align-items:center;gap:6px;min-width:0}
+.strip .lab{flex:none;width:44px;font-size:12px;color:var(--muted)}
+.cells{display:flex;gap:3px;flex:1;min-width:0}
+.cell{flex:1 1 0;min-width:0;max-width:52px;height:32px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-family:var(--font-mono);font-size:13px;font-weight:600;overflow:hidden;transition:background-color .15s,color .15s,border-color .15s,opacity .15s}
+.cells.dense .cell{font-size:11px;height:26px}
+.cell.empty{background:transparent;border-style:dashed;color:transparent}
+.cell.new{animation:pop .35s ease-out}
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.cell.out{background:color-mix(in srgb,var(--done) 22%,var(--surface-2));border-color:color-mix(in srgb,var(--done) 55%,transparent)}
+.cell.seg{border-color:var(--accent);border-width:2px}
+.cell.root{background:var(--cmp);color:#1b1400;border-color:transparent}
+.cell.lft{background:color-mix(in srgb,var(--left) 28%,var(--surface-2));border-color:var(--left)}
+.cell.rgt{background:color-mix(in srgb,var(--right) 28%,var(--surface-2));border-color:var(--right)}
+.cell.used{opacity:.45}
+.cells.pick .cell{cursor:pointer}
+.cells.pick .cell:hover{outline:2px solid var(--accent);outline-offset:1px}
+.cell.wrong{animation:shake .4s;background:var(--bad);color:#fff}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.chips{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0;min-height:26px;align-items:center}
+.chips .c{font-family:var(--font-mono);font-size:12px;padding:2px 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);white-space:nowrap}
+.chips .c.top{background:color-mix(in srgb,var(--pivot) 22%,var(--surface-2));border-color:var(--pivot)}
+.chips .c.nul{border-style:dashed;color:var(--muted)}
+.chips .none{font-size:12px;color:var(--muted)}
+.chips .arrow{color:var(--muted);font-size:11px}
+
+/* ---------- transport ---------- */
+.transport{padding:12px 14px;display:grid;gap:12px}
+.t-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.btns{display:flex;gap:6px;align-items:center}
+.btn{height:38px;min-width:38px;padding:0 10px;border:1px solid var(--line);background:var(--surface-2);border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-size:13.5px;transition:background-color .12s,border-color .12s;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn svg{width:16px;height:16px;fill:currentColor}
+.btn.play{width:54px;height:44px;background:var(--accent);color:var(--accent-ink);border-color:transparent;border-radius:12px}
+.btn.play svg{width:20px;height:20px}
+.btn[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 18%,var(--surface-2));border-color:var(--accent)}
+.btn.chal[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.timeline{flex:1 1 200px;min-width:0;display:flex;align-items:center;gap:10px}
+input[type=range]{accent-color:var(--accent);width:100%;min-width:0}
+.field{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.field input[type=range]{width:110px}
+.field output{font-family:var(--font-mono);color:var(--ink);min-width:44px;font-variant-numeric:tabular-nums}
+.data-row{border-top:1px solid var(--line);padding-top:12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{border:1px solid var(--line);background:none;border-radius:999px;padding:4px 12px;font-size:13px;cursor:pointer;color:var(--muted)}
+.pill:hover{color:var(--ink);border-color:var(--accent)}
+.pill[aria-pressed="true"]{color:var(--accent-ink);background:var(--accent);border-color:transparent}
+.inrow{display:flex;gap:6px;flex:1 1 260px;min-width:0;align-items:center}
+.inrow label{flex:none;font-size:13px;color:var(--muted)}
+.inrow input{flex:1;min-width:0;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:0 10px;font-family:var(--font-mono);font-size:13px}
+.inrow .btn{height:34px}
+.recon-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;flex:1 1 100%;align-items:center}
+@media (max-width:620px){.recon-form{grid-template-columns:minmax(0,1fr)}}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.hint kbd{font-family:var(--font-mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface-2);color:var(--ink)}
+.err{color:var(--bad);font-size:13px;margin:0}
+.ok{color:var(--done);font-size:13px;margin:0}
+
+/* ---------- code panel ---------- */
+.code-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px 0 14px;flex-wrap:wrap}
+.code-head h2,.theory h2{margin:0;font-size:13px;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.langs{display:inline-flex;border:1px solid var(--line);border-radius:9px;padding:2px;gap:2px}
+.langs button{border:0;background:none;border-radius:7px;padding:4px 12px;cursor:pointer;font-family:var(--font-mono);font-size:12.5px;color:var(--muted)}
+.langs button[aria-selected="true"]{background:var(--ink);color:var(--surface)}
+.code-tools{display:flex;gap:8px;align-items:center}
+.btn.small{height:30px;font-size:12.5px;padding:0 10px}
+.code{position:relative;margin:10px 0 0;background:var(--code-bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line);max-height:min(540px,60vh);overflow:auto;font-family:var(--font-mono);font-size:12.8px;line-height:1.62;padding:8px 0;tab-size:4}
+@media (max-width:1060px){.code{max-height:none}}
+.ln{display:flex;white-space:pre;padding-right:16px;min-width:max-content;border-left:3px solid transparent;transition:background-color .18s}
+.ln .no{flex:none;width:38px;text-align:right;padding-right:14px;color:var(--tok-com);user-select:none;opacity:.8}
+.ln.hot{background:var(--code-hot);border-left-color:var(--code-hot-bar)}
+.ln.hot .no{color:var(--ink);opacity:1;font-weight:600}
+.t-kw{color:var(--tok-kw);font-weight:600}.t-fn{color:var(--tok-fn)}.t-num{color:var(--tok-num)}.t-str{color:var(--tok-str)}.t-com{color:var(--tok-com);font-style:italic}
+.run{padding:10px 14px 12px;font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.run code{font-family:var(--font-mono);font-size:12px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 7px;overflow-wrap:anywhere}
+
+/* ---------- theory ---------- */
+.theory{padding:14px 16px 16px;display:grid;gap:12px}
+.idea,.memo{margin:0;font-size:15px;max-width:62ch}
+.memo{font-size:14px;color:var(--muted);border-left:3px solid var(--accent);padding-left:10px}
+.memo b{color:var(--ink)}
+.cx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cx div{padding:8px 10px;display:grid;gap:0;border-right:1px solid var(--line);min-width:0}
+.cx div:last-child{border-right:0}
+.cx .k{font-size:11px;color:var(--muted)}
+.cx .v{font-family:var(--font-mono);font-size:13px;font-weight:600;overflow-wrap:anywhere}
+@media (max-width:460px){.cx{grid-template-columns:repeat(2,minmax(0,1fr))}.cx div:nth-child(2){border-right:0}.cx div:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin:0;padding:0;list-style:none}
+.legend li{display:flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:50%;flex:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">Binary Tree Lab · 3D</span>
+      <h1>二元樹 <b>3D</b> 實驗室</h1>
+    </div>
+    <nav class="modes" id="modes" role="tablist" aria-label="選擇模式"></nav>
+  </header>
+
+  <main class="grid">
+    <section class="col" aria-label="動畫區">
+      <div class="stage" id="stage">
+        <div class="hud hud-tl">
+          <div class="chip hud-title"><span class="zh" id="hudZh">前序走訪</span><span class="en" id="hudEn">Preorder</span></div>
+        </div>
+        <div class="hud hud-tr">
+          <div class="chip stat"><span class="k" id="st1k">已輸出</span><span class="v" id="st1">0</span></div>
+          <div class="chip stat"><span class="k" id="st2k">堆疊深度</span><span class="v" id="st2">0</span></div>
+        </div>
+        <div class="hud hud-bl">
+          <div class="chip seg" role="group" aria-label="視角">
+            <button type="button" data-view="front" aria-pressed="true">正面</button>
+            <button type="button" data-view="angle" aria-pressed="false">斜視</button>
+            <button type="button" data-view="top" aria-pressed="false">俯視</button>
+          </div>
+          <div class="chip seg">
+            <button type="button" id="projBtn" aria-pressed="false" title="把每個節點垂直投影到地面：由左到右就是中序">中序投影</button>
+            <button type="button" id="spinBtn" aria-pressed="false">自動旋轉</button>
+          </div>
+        </div>
+        <div class="hud hud-br"><div class="chip trick" id="trick">
+          <span>沿著樹的外圍繞一圈，經過節點的哪一側時輸出：</span>
+          <div class="trick-row"><span data-side="pre"><i></i>左側＝前序</span><span data-side="in"><i></i>下方＝中序</span><span data-side="post"><i></i>右側＝後序</span></div>
+        </div></div>
+        <div class="tip" id="tip" hidden></div>
+      </div>
+
+      <div class="panel narr">
+        <div class="narr-row">
+          <span class="narr-step" id="stepLbl">步驟 0 / 0</span>
+          <span class="narr-text" id="narr" aria-live="polite">載入中…</span>
+        </div>
+        <div class="strips">
+          <div class="strip"><span class="lab" id="labA">輸出</span><div class="cells" id="cellsA"></div></div>
+          <div class="strip" id="stripB" hidden><span class="lab" id="labB">中序</span><div class="cells" id="cellsB"></div></div>
+          <div class="strip"><span class="lab" id="labC">呼叫堆疊</span><div class="chips" id="chips"></div></div>
+        </div>
+      </div>
+
+      <div class="panel transport">
+        <div class="t-row">
+          <div class="btns">
+            <button class="btn" type="button" id="bFirst" aria-label="回到開頭" title="回到開頭"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+            <button class="btn" type="button" id="bPrev" aria-label="上一步" title="上一步 (←)"><svg viewBox="0 0 24 24"><path d="M15.5 5v14L5 12z"/><path d="M17 5h2v14h-2z"/></svg></button>
+            <button class="btn play" type="button" id="bPlay" aria-label="播放" title="播放／暫停 (空白鍵)"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15L19.5 12z"/></svg></button>
+            <button class="btn" type="button" id="bNext" aria-label="下一步" title="下一步 (→)"><svg viewBox="0 0 24 24"><path d="M8.5 5v14L19 12z"/><path d="M5 5h2v14H5z"/></svg></button>
+            <button class="btn" type="button" id="bLast" aria-label="跳到結果" title="跳到結果"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+          </div>
+          <div class="timeline"><input type="range" id="timeline" min="0" max="0" value="0" aria-label="時間軸"></div>
+          <div class="field"><label for="speed">速度</label><input type="range" id="speed" min="1" max="10" value="4"><output id="speedOut" for="speed">5 步/秒</output></div>
+          <button class="btn" type="button" id="soundBtn" aria-pressed="false" title="輸出節點時發出音高"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a5 5 0 0 1 0 7l-1.2-1.2a3.3 3.3 0 0 0 0-4.6zM18.5 6a8.5 8.5 0 0 1 0 12l-1.2-1.2a6.8 6.8 0 0 0 0-9.6z"/></svg><span>音效</span></button>
+          <button class="btn chal" type="button" id="chalBtn" aria-pressed="false" title="自己動手：依序點出答案">換我挑戰</button>
+        </div>
+
+        <div class="t-row data-row" id="travData">
+          <div class="pills" role="group" aria-label="範例樹">
+            <button type="button" class="pill" data-preset="book" aria-pressed="true">課本範例</button>
+            <button type="button" class="pill" data-preset="full" aria-pressed="false">完全二元樹</button>
+            <button type="button" class="pill" data-preset="skew" aria-pressed="false">歪斜樹</button>
+            <button type="button" class="pill" data-preset="expr" aria-pressed="false">運算式樹</button>
+            <button type="button" class="pill" data-preset="random" aria-pressed="false">隨機</button>
+          </div>
+          <div class="field"><label for="size">隨機節點數</label><input type="range" id="size" min="3" max="15" value="9"><output id="sizeOut" for="size">9</output></div>
+          <button class="btn" type="button" id="editBtn" aria-pressed="false" title="點虛線圓圈新增子節點，點葉節點刪除">編輯樹</button>
+          <form class="inrow" id="levelForm"><label for="levelIn">層序</label><input id="levelIn" type="text" spellcheck="false" placeholder="A,B,C,D,#,E（# 代表空）"><button class="btn" type="submit">套用</button></form>
+        </div>
+
+        <div class="t-row data-row" id="reconData" hidden>
+          <form class="recon-form" id="reconForm">
+            <div class="inrow"><label for="seqA" id="seqALab">前序</label><input id="seqA" type="text" spellcheck="false" placeholder="ABDECF"></div>
+            <div class="inrow"><label for="seqI">中序</label><input id="seqI" type="text" spellcheck="false" placeholder="DBEAFC"></div>
+            <button class="btn" type="submit">反推</button>
+          </form>
+          <div class="pills">
+            <button type="button" class="pill" id="fromTree">用目前的樹出題</button>
+            <button type="button" class="pill" id="randRecon">隨機出題</button>
+          </div>
+        </div>
+        <p class="err" id="err" hidden></p>
+        <p class="hint" id="hint"></p>
+      </div>
+    </section>
+
+    <aside class="col" aria-label="程式碼與說明">
+      <section class="panel">
+        <div class="code-head">
+          <h2>範例程式碼</h2>
+          <div class="code-tools">
+            <div class="langs" role="tablist" aria-label="程式語言">
+              <button type="button" role="tab" data-lang="py" aria-selected="true">Python</button>
+              <button type="button" role="tab" data-lang="c" aria-selected="false">C</button>
+              <button type="button" role="tab" data-lang="java" aria-selected="false">Java</button>
+            </div>
+            <button class="btn small" type="button" id="copyBtn">複製</button>
+          </div>
+        </div>
+        <div class="code" id="code" tabindex="0" aria-label="程式碼，亮起的那一行對應目前步驟"></div>
+        <div class="run"><span>執行：</span><code id="runCmd"></code></div>
+      </section>
+
+      <section class="panel theory">
+        <h2>原理與口訣</h2>
+        <p class="idea" id="idea"></p>
+        <p class="memo" id="memo"></p>
+        <div class="cx" id="cx"></div>
+        <ul class="legend" id="legend" aria-label="顏色說明"></ul>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* =====================================================================
+   1. 範例程式碼（#@tag / //@tag 標記對應步驟的那一行）
+   ===================================================================== */
+const PY_NODE = `class Node:
+    def __init__(self, val, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right`;
+const C_HEAD = `#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct Node {
+    char val;
+    struct Node *left, *right;
+} Node;
+
+Node *new_node(char val, Node *left, Node *right) {
+    Node *n = malloc(sizeof(Node));
+    n->val = val;
+    n->left = left;
+    n->right = right;
+    return n;
+}`;
+const JAVA_NODE = `static class Node {
+    char val;
+    Node left, right;
+
+    Node(char val, Node left, Node right) {
+        this.val = val;
+        this.left = left;
+        this.right = right;
+    }
+}`;
+const ART = ['範例樹：', '       A', '     ┌─┴─┐', '     B   C', '    ┌┴┐ ┌┘', '    D E F'];
+function mainTrav(lang, call, exp){
+  if (lang === 'py') return ART.map(l => '    # ' + l).join('\n') +
+    '\n    root = Node("A", Node("B", Node("D"), Node("E")), Node("C", Node("F")))\n    ' + call + '  # ' + exp + '\n    print()';
+  if (lang === 'c') return ART.map(l => '    // ' + l).join('\n') +
+    "\n    Node *root = new_node('A',\n        new_node('B', new_node('D', NULL, NULL), new_node('E', NULL, NULL)),\n        new_node('C', new_node('F', NULL, NULL), NULL));\n    " + call + ';  // ' + exp + '\n    printf("\\n");';
+  return ART.map(l => '        // ' + l).join('\n') +
+    "\n        Node root = new Node('A',\n            new Node('B', new Node('D', null, null), new Node('E', null, null)),\n            new Node('C', new Node('F', null, null), null));\n        " + call + ';  // ' + exp + '\n        System.out.println();';
+}
+function mainRecon(lang, kind){
+  const a = kind === 'rpre' ? 'ABDECF' : 'DEBFCA', show = kind === 'rpre' ? 'postorder' : 'preorder', exp = kind === 'rpre' ? 'D E B F C A' : 'A B D E C F';
+  if (lang === 'py') return `    root = build(list("${a}"), list("DBEAFC"))\n    ${show}(root)  # ${exp}\n    print()`;
+  if (lang === 'c') return `    Node *root = build("${a}", "DBEAFC", 6);\n    ${show}(root);  // ${exp}\n    printf("\\n");`;
+  return `        Node root = build("${a}".toCharArray(), 0, "DBEAFC".toCharArray(), 0, 6);\n        ${show}(root);  // ${exp}\n        System.out.println();`;
+}
+const dfsCode = (name, jname, order) => {
+  const py = { visit:'    print(node.val, end=" ")      #@visit', left:`    ${name}(node.left)${' '.repeat(Math.max(1, 19 - name.length))}#@left`, right:`    ${name}(node.right)${' '.repeat(Math.max(1, 18 - name.length))}#@right` };
+  const c = { visit:'    printf("%c ", node->val);         //@visit', left:`    ${name}(node->left);${' '.repeat(Math.max(1, 21 - name.length))}//@left`, right:`    ${name}(node->right);${' '.repeat(Math.max(1, 20 - name.length))}//@right` };
+  const j = { visit:'    System.out.print(node.val + " ");  //@visit', left:`    ${jname}(node.left);${' '.repeat(Math.max(1, 23 - jname.length))}//@left`, right:`    ${jname}(node.right);${' '.repeat(Math.max(1, 22 - jname.length))}//@right` };
+  return {
+    py:`def ${name}(node):\n    if node is None:              #@null\n        return\n` + order.map(k => py[k]).join('\n'),
+    c:`void ${name}(Node *node) {\n    if (node == NULL) return;         //@null\n` + order.map(k => c[k]).join('\n') + '\n}',
+    java:`static void ${jname}(Node node) {\n    if (node == null) return;          //@null\n` + order.map(k => j[k]).join('\n') + '\n}'
+  };
+};
+const PRINT_HELP = {
+  rpre:{
+    py:`def postorder(node):\n    if node:\n        postorder(node.left)\n        postorder(node.right)\n        print(node.val, end=" ")`,
+    c:`void postorder(Node *t) {\n    if (t == NULL) return;\n    postorder(t->left);\n    postorder(t->right);\n    printf("%c ", t->val);\n}`,
+    java:`static void postorder(Node t) {\n    if (t == null) return;\n    postorder(t.left);\n    postorder(t.right);\n    System.out.print(t.val + " ");\n}`
+  },
+  rpost:{
+    py:`def preorder(node):\n    if node:\n        print(node.val, end=" ")\n        preorder(node.left)\n        preorder(node.right)`,
+    c:`void preorder(Node *t) {\n    if (t == NULL) return;\n    printf("%c ", t->val);\n    preorder(t->left);\n    preorder(t->right);\n}`,
+    java:`static void preorder(Node t) {\n    if (t == null) return;\n    System.out.print(t.val + " ");\n    preorder(t.left);\n    preorder(t.right);\n}`
+  }
+};
+
+const MODES = {
+pre:{
+  group:'trav', zh:'前序走訪', en:'Preorder', cls:'Preorder', file:'preorder', order:'根 → 左 → 右', side:'L',
+  idea:'先處理目前的節點，再完整走完左子樹，最後走右子樹。每個節點在「第一次被碰到」時就輸出，所以根一定排在最前面。',
+  memo:'<b>口訣：根左右。</b>沿著樹的外框從根的左邊出發繞一圈，經過節點<b>左側</b>的那一刻輸出。常用在複製一棵樹、印出資料夾目錄、把樹存成文字（序列化）。',
+  cx:[['時間','O(n)'],['額外空間','O(h)，h 為樹高'],['第一個輸出','根'],['最後一個輸出','最右下的葉']],
+  code:dfsCode('preorder', 'preorder', ['visit','left','right']),
+  main:l => mainTrav(l, 'preorder(root)', 'A B D E C F')
+},
+in:{
+  group:'trav', zh:'中序走訪', en:'Inorder', cls:'Inorder', file:'inorder', order:'左 → 根 → 右', side:'B',
+  idea:'先走完左子樹，回到節點時輸出它，再走右子樹。打開「中序投影」會看到：把每個節點垂直壓到地面，由左到右讀出來剛好就是中序。',
+  memo:'<b>口訣：左根右。</b>繞外框時經過節點<b>下方</b>輸出。二元搜尋樹（BST）的中序剛好由小到大；運算式樹的中序就是一般寫法（要自己補括號）。',
+  cx:[['時間','O(n)'],['額外空間','O(h)，h 為樹高'],['第一個輸出','最左邊的節點'],['特性','= 地面投影順序']],
+  code:dfsCode('inorder', 'inorder', ['left','visit','right']),
+  main:l => mainTrav(l, 'inorder(root)', 'D B E A F C')
+},
+post:{
+  group:'trav', zh:'後序走訪', en:'Postorder', cls:'Postorder', file:'postorder', order:'左 → 右 → 根', side:'R',
+  idea:'左子樹、右子樹都走完之後才輸出節點本身，所以根一定排在最後。一個節點要等它底下全部處理完才輪到它。',
+  memo:'<b>口訣：左右根。</b>繞外框時經過節點<b>右側</b>輸出。常用在釋放整棵樹的記憶體、計算資料夾總大小；運算式樹的後序就是逆波蘭表示法（試試「運算式樹」範例）。',
+  cx:[['時間','O(n)'],['額外空間','O(h)，h 為樹高'],['第一個輸出','最左下的葉'],['最後一個輸出','根']],
+  code:dfsCode('postorder', 'postorder', ['left','right','visit']),
+  main:l => mainTrav(l, 'postorder(root)', 'D E B F C A')
+},
+level:{
+  group:'trav', zh:'層序走訪', en:'Level-order', cls:'LevelOrder', file:'level_order', order:'一層一層、由左到右',
+  idea:'用佇列（先進先出）：從根開始，每取出一個節點就輸出，並把它的左、右子節點排到佇列尾端。於是同一層的節點會排在一起，由上往下、由左往右輸出。',
+  memo:'<b>口訣：排隊。</b>這就是廣度優先搜尋（BFS）。前、中、後序都用遞迴（堆疊），只有層序用佇列。常用在找最短路徑、印出每一層。',
+  cx:[['時間','O(n)'],['額外空間','O(w)，w 為最寬層'],['資料結構','佇列 Queue'],['也叫做','BFS']],
+  imports:{ py:'from collections import deque', java:'import java.util.ArrayDeque;' },
+  code:{
+py:`def level_order(root):
+    q = deque([root])                     #@init
+    while q:
+        node = q.popleft()                #@pop
+        print(node.val, end=" ")          #@visit
+        if node.left:
+            q.append(node.left)           #@pushL
+        if node.right:
+            q.append(node.right)          #@pushR`,
+c:`void level_order(Node *root) {
+    Node *q[64];
+    int head = 0, tail = 0;
+    q[tail++] = root;                              //@init
+    while (head < tail) {
+        Node *node = q[head++];                    //@pop
+        printf("%c ", node->val);                  //@visit
+        if (node->left)  q[tail++] = node->left;   //@pushL
+        if (node->right) q[tail++] = node->right;  //@pushR
+    }
+}`,
+java:`static void levelOrder(Node root) {
+    ArrayDeque<Node> q = new ArrayDeque<>();
+    q.add(root);                                    //@init
+    while (!q.isEmpty()) {
+        Node node = q.poll();                       //@pop
+        System.out.print(node.val + " ");           //@visit
+        if (node.left != null) q.add(node.left);    //@pushL
+        if (node.right != null) q.add(node.right);  //@pushR
+    }
+}`},
+  main:l => mainTrav(l, l === 'java' ? 'levelOrder(root)' : 'level_order(root)', 'A B C D E F')
+},
+rpre:{
+  group:'recon', zh:'前序＋中序', en:'Pre + In → Tree', cls:'BuildFromPreIn', file:'build_pre_in', seq:'前序', other:'後序',
+  idea:'前序的第一個一定是根。在中序裡找到這個根：它左邊的都屬於左子樹、右邊的都屬於右子樹。左子樹有 k 個節點，前序接下來的 k 個就是左子樹的前序，剩下的是右子樹。對兩邊重複同樣的步驟。',
+  memo:'<b>口訣：前序找根，中序分左右。</b>地面上排的就是中序，節點會從自己的地磚升起，所以「左邊、右邊」在畫面上就是字面意思。注意：只給前序＋後序無法唯一決定一棵樹（例如 A 只有一個子節點 B 時，分不出 B 在左還是右）。',
+  cx:[['時間','O(n²)，用雜湊表記位置可降到 O(n)'],['額外空間','O(n)'],['需要','前序 + 中序'],['限制','節點值不可重複']],
+  code:{
+py:`def build(pre, ino):
+    if not pre:                                     #@empty
+        return None
+    root = Node(pre[0])                             #@root
+    k = ino.index(pre[0])                           #@find
+    root.left = build(pre[1:k + 1], ino[:k])        #@left
+    root.right = build(pre[k + 1:], ino[k + 1:])    #@right
+    return root                                     #@ret`,
+c:`Node *build(const char *pre, const char *in, int n) {
+    if (n == 0) return NULL;                                  //@empty
+    Node *root = new_node(pre[0], NULL, NULL);                //@root
+    int k = 0;
+    while (in[k] != pre[0]) k++;                              //@find
+    root->left = build(pre + 1, in, k);                       //@left
+    root->right = build(pre + 1 + k, in + k + 1, n - k - 1);  //@right
+    return root;                                              //@ret
+}`,
+java:`static Node build(char[] pre, int p, char[] in, int i, int n) {
+    if (n == 0) return null;                                       //@empty
+    Node root = new Node(pre[p], null, null);                      //@root
+    int k = 0;
+    while (in[i + k] != pre[p]) k++;                               //@find
+    root.left = build(pre, p + 1, in, i, k);                       //@left
+    root.right = build(pre, p + 1 + k, in, i + k + 1, n - k - 1);  //@right
+    return root;                                                   //@ret
+}`},
+  main:l => mainRecon(l, 'rpre')
+},
+rpost:{
+  group:'recon', zh:'後序＋中序', en:'Post + In → Tree', cls:'BuildFromPostIn', file:'build_post_in', seq:'後序', other:'前序',
+  idea:'後序的最後一個一定是根。在中序裡找到它，左邊是左子樹、右邊是右子樹。若左子樹有 k 個節點，後序的前 k 個就是左子樹的後序，接著到倒數第二個是右子樹的後序。',
+  memo:'<b>口訣：後序找根（看最後），中序分左右。</b>跟前序版只差在根取最後一個、左右區間從後序的開頭切。考試常見題型是「給中序和後序，求前序」，做完重建後答案就在說明列。',
+  cx:[['時間','O(n²)，用雜湊表記位置可降到 O(n)'],['額外空間','O(n)'],['需要','後序 + 中序'],['限制','節點值不可重複']],
+  code:{
+py:`def build(post, ino):
+    if not post:                                    #@empty
+        return None
+    root = Node(post[-1])                           #@root
+    k = ino.index(post[-1])                         #@find
+    root.left = build(post[:k], ino[:k])            #@left
+    root.right = build(post[k:-1], ino[k + 1:])     #@right
+    return root                                     #@ret`,
+c:`Node *build(const char *post, const char *in, int n) {
+    if (n == 0) return NULL;                                  //@empty
+    Node *root = new_node(post[n - 1], NULL, NULL);           //@root
+    int k = 0;
+    while (in[k] != post[n - 1]) k++;                         //@find
+    root->left = build(post, in, k);                          //@left
+    root->right = build(post + k, in + k + 1, n - k - 1);     //@right
+    return root;                                              //@ret
+}`,
+java:`static Node build(char[] post, int p, char[] in, int i, int n) {
+    if (n == 0) return null;                                       //@empty
+    Node root = new Node(post[p + n - 1], null, null);             //@root
+    int k = 0;
+    while (in[i + k] != post[p + n - 1]) k++;                      //@find
+    root.left = build(post, p, in, i, k);                          //@left
+    root.right = build(post, p + k, in, i + k + 1, n - k - 1);     //@right
+    return root;                                                   //@ret
+}`},
+  main:l => mainRecon(l, 'rpost')
+}
+};
+const ORDER = ['pre','in','post','level','rpre','rpost'];
+const isRecon = m => MODES[m].group === 'recon';
+
+function compose(key, lang){
+  const m = MODES[key];
+  let body = m.code[lang].replace(/^\n+/, '').replace(/\s+$/, '');
+  if (PRINT_HELP[key]) body += (lang === 'py' ? '\n\n\n' : '\n\n') + PRINT_HELP[key][lang];
+  const imp = m.imports && m.imports[lang];
+  const ind = s => s.split('\n').map(l => l ? '    ' + l : l).join('\n');
+  if (lang === 'py') return `${imp ? imp + '\n\n\n' : ''}${PY_NODE}\n\n\n${body}\n\n\nif __name__ == "__main__":\n${m.main('py')}`;
+  if (lang === 'c') return `${C_HEAD}\n\n${body}\n\nint main(void) {\n${m.main('c')}\n    return 0;\n}`;
+  return `${imp ? imp + '\n\n' : ''}public class ${m.cls} {\n${ind(JAVA_NODE)}\n\n${ind(body)}\n\n    public static void main(String[] args) {\n${m.main('java')}\n    }\n}`;
+}
+function parseCode(src){
+  const map = {};
+  const lines = src.split('\n').map((ln, i) => {
+    const mm = ln.match(/\s*(?:#|\/\/)@([\w,]+)\s*$/);
+    if (!mm) return ln;
+    mm[1].split(',').forEach(t => (map[t] = map[t] || []).push(i));
+    return ln.slice(0, mm.index);
+  });
+  return { lines, map, text:lines.join('\n') };
+}
+const CODE = {};
+ORDER.forEach(k => { CODE[k] = {}; ['py','c','java'].forEach(l => CODE[k][l] = parseCode(compose(k, l))); });
+
+/* =====================================================================
+   2. 樹的資料與走訪 / 反推的逐步紀錄
+   ===================================================================== */
+const EMPTY = new Set(['#','null','none','nil','-','_','∅']);
+function tokenize(s){
+  s = String(s || '').trim();
+  if (!s) return [];
+  return /[\s,，、;；]/.test(s) ? s.split(/[\s,，、;；]+/).filter(Boolean) : [...s];
+}
+function treeFromLevel(str){
+  const t = tokenize(str);
+  if (!t.length) throw new Error('請輸入層序，例如 A,B,C,D,#,E（# 代表空位）');
+  if (EMPTY.has(t[0].toLowerCase())) throw new Error('第一個值是根節點，不能是空的');
+  const nodes = {};
+  const add = v => {
+    if (v.length > 3) throw new Error(`節點值最多 3 個字元，「${v}」太長`);
+    if (nodes[v]) throw new Error(`節點值不能重複：${v} 出現了不只一次`);
+    nodes[v] = { l:null, r:null };
+  };
+  add(t[0]);
+  const q = [t[0]]; let i = 1;
+  while (q.length && i < t.length){
+    const v = q.shift();
+    for (const side of ['l','r']){
+      if (i >= t.length) break;
+      const x = t[i++];
+      if (!EMPTY.has(x.toLowerCase())){ add(x); nodes[v][side] = x; q.push(x); }
+    }
+  }
+  if (Object.keys(nodes).length > 26) throw new Error('節點最多 26 個');
+  return { root:t[0], nodes };
+}
+function toLevel(T){
+  const out = [], q = [T.root];
+  while (q.length){
+    const v = q.shift();
+    if (v == null){ out.push('#'); continue; }
+    out.push(v); q.push(T.nodes[v].l, T.nodes[v].r);
+  }
+  while (out[out.length - 1] === '#') out.pop();
+  return out.join(',');
+}
+const ORD = {
+  pre(T){ const o = []; (function f(v){ if (v == null) return; o.push(v); f(T.nodes[v].l); f(T.nodes[v].r); })(T.root); return o; },
+  in(T){ const o = []; (function f(v){ if (v == null) return; f(T.nodes[v].l); o.push(v); f(T.nodes[v].r); })(T.root); return o; },
+  post(T){ const o = []; (function f(v){ if (v == null) return; f(T.nodes[v].l); f(T.nodes[v].r); o.push(v); })(T.root); return o; },
+  level(T){ const o = [], q = [T.root]; while (q.length){ const v = q.shift(); o.push(v); const n = T.nodes[v]; if (n.l != null) q.push(n.l); if (n.r != null) q.push(n.r); } return o; }
+};
+function depthMap(T){
+  const d = {}, par = {};
+  (function f(v, k, p){ if (v == null) return; d[v] = k; par[v] = p; f(T.nodes[v].l, k + 1, v); f(T.nodes[v].r, k + 1, v); })(T.root, 0, null);
+  return { d, par, max:Math.max(0, ...Object.values(d)) };
+}
+const PRESETS = {
+  book:'A,B,C,D,E,#,F,#,#,G,H',
+  full:'A,B,C,D,E,F,G',
+  skew:'A,B,#,C,#,D,#,E',
+  expr:'*,+,-,3,4,8,2'
+};
+function randomTree(n){
+  const kids = [{ l:-1, r:-1 }], depth = [0];
+  while (kids.length < n){
+    const slots = [];
+    kids.forEach((k, i) => { if (depth[i] < 4){ if (k.l < 0) slots.push([i, 'l']); if (k.r < 0) slots.push([i, 'r']); } });
+    const w = slots.map(([i]) => 1 / (1 + depth[i] * 1.2));
+    let r = Math.random() * w.reduce((a, b) => a + b, 0), pick = slots[0];
+    for (let s = 0; s < slots.length; s++){ r -= w[s]; if (r <= 0){ pick = slots[s]; break; } }
+    const id = kids.length; kids.push({ l:-1, r:-1 }); depth.push(depth[pick[0]] + 1); kids[pick[0]][pick[1]] = id;
+  }
+  const order = [], q = [0];
+  while (q.length){ const i = q.shift(); order.push(i); if (kids[i].l >= 0) q.push(kids[i].l); if (kids[i].r >= 0) q.push(kids[i].r); }
+  const name = {}; order.forEach((id, k) => name[id] = String.fromCharCode(65 + k));
+  const nodes = {};
+  kids.forEach((k, i) => nodes[name[i]] = { l:k.l >= 0 ? name[k.l] : null, r:k.r >= 0 ? name[k.r] : null });
+  return { root:'A', nodes };
+}
+
+/* ---------- 走訪：每一步記下走訪者在哪個「路標」與輸出狀態 ---------- */
+function travFrames(kind, T){
+  const F = [], wps = [], out = [], stack = [];
+  const { par } = depthMap(T);
+  const call = v => kind === 'level' ? v : `${kind === 'pre' ? 'preorder' : kind === 'in' ? 'inorder' : 'postorder'}(${v})`;
+  const wp = (v, at) => { wps.push({ v, at }); return wps.length - 1; };
+  const snap = (tag, desc, w, cur, o = {}) => F.push(Object.assign({ tag, desc, wp:w, cur, stack:stack.map(call), out:out.slice(), queue:null }, o));
+  if (kind === 'level'){
+    const q = [T.root];
+    snap('start', `從根 ${T.root} 開始，用佇列一層一層往下`, wp(T.root, 'S'), null, { queue:[] });
+    snap('init', `把根 ${T.root} 放進佇列`, wp(T.root, 'S'), null, { queue:q.slice() });
+    while (q.length){
+      const v = q.shift(), n = T.nodes[v];
+      snap('pop', `從佇列前端取出 ${v}`, wp(v, 'T'), v, { queue:q.slice() });
+      out.push(v);
+      snap('visit', `輸出 ${v}（第 ${out.length} 個）`, F[F.length - 1].wp, v, { queue:q.slice() });
+      if (n.l != null){ q.push(n.l); snap('pushL', `${v} 的左子節點 ${n.l} 排到佇列尾端`, F[F.length - 1].wp, v, { queue:q.slice() }); }
+      if (n.r != null){ q.push(n.r); snap('pushR', `${v} 的右子節點 ${n.r} 排到佇列尾端`, F[F.length - 1].wp, v, { queue:q.slice() }); }
+    }
+    snap('end', `走訪完成：${out.join(' ')}`, wp(T.root, 'S'), null, { queue:[] });
+    return { frames:F, wps, out };
+  }
+  snap('start', `從根 ${T.root} 的上方出發，準備沿著樹的外圍繞一圈`, wp(T.root, 'S'), null);
+  (function rec(v){
+    stack.push(v);
+    const n = T.nodes[v], back = par[v] != null ? `回到 ${par[v]}` : '整棵樹走完';
+    let w = wp(v, 'L');
+    if (kind === 'pre'){ out.push(v); snap('visit', `第一次碰到 ${v}（經過左側）→ 輸出 ${v}，接著走左子樹`, w, v); }
+    else snap('left', `進入 ${v}，先走左子樹`, w, v);
+    if (n.l != null) rec(n.l);
+    else { w = wp(v, 'NL'); snap('null', `${v} 沒有左子節點：呼叫 ${call('None')} 立刻 return`, w, v, { nul:'L' }); }
+    w = wp(v, 'B');
+    if (kind === 'in'){ out.push(v); snap('visit', `${v} 的左子樹走完，經過 ${v} 下方 → 輸出 ${v}，接著走右子樹`, w, v); }
+    else snap('right', `${v} 的左子樹走完，換走右子樹`, w, v);
+    if (n.r != null) rec(n.r);
+    else { w = wp(v, 'NR'); snap('null', `${v} 沒有右子節點：呼叫 ${call('None')} 立刻 return`, w, v, { nul:'R' }); }
+    w = wp(v, 'R');
+    if (kind === 'post'){ out.push(v); snap('visit', `${v} 的左右子樹都走完，經過右側 → 輸出 ${v}，${back}`, w, v); }
+    else snap('done', `${v} 的左右子樹都走完，${back}`, w, v);
+    stack.pop();
+  })(T.root);
+  snap('end', `走訪完成：${out.join(' ')}`, wp(T.root, 'E'), null);
+  return { frames:F, wps, out };
+}
+
+/* ---------- 反推：從兩個序列重建樹，每一步記下目前處理的區間 ---------- */
+function validateSeqs(A, I, nameA){
+  if (!A.length || !I.length) throw new Error(`請輸入${nameA}與中序`);
+  if (A.length !== I.length) throw new Error(`兩個序列長度不同（${nameA} ${A.length} 個、中序 ${I.length} 個）`);
+  if (A.length > 26) throw new Error('節點最多 26 個');
+  const seen = new Set();
+  for (const x of I){ if (x.length > 3) throw new Error(`節點值最多 3 個字元，「${x}」太長`); if (seen.has(x)) throw new Error(`節點值不能重複：中序裡 ${x} 出現了不只一次`); seen.add(x); }
+  const sa = new Set();
+  for (const x of A){ if (sa.has(x)) throw new Error(`節點值不能重複：${nameA}裡 ${x} 出現了不只一次`); sa.add(x); if (!seen.has(x)) throw new Error(`${x} 只出現在${nameA}，中序裡沒有`); }
+}
+function reconFrames(kind, A, I){
+  const nameA = kind === 'rpre' ? '前序' : '後序', an = kind === 'rpre' ? 'pre' : 'post';
+  validateSeqs(A, I, nameA);
+  const F = [], built = [], stack = [], nodes = {};
+  const rng = (a, b) => a > b ? '[]' : `[${a}..${b}]`;
+  const snap = (tag, desc, o = {}) => F.push({ tag, desc, built:built.slice(), stack:stack.slice(),
+    cur:o.cur ?? null, segA:o.segA ?? null, segI:o.segI ?? null, rootA:o.rootA ?? -1, k:o.k ?? -1 });
+  snap('start', `${nameA}：${A.join(' ')}　中序：${I.join(' ')}。開始重建`);
+  function rec(a0, a1, i0, i1, par, side){
+    stack.push(`build(${an}${rng(a0, a1)}, in${rng(i0, i1)})`);
+    const segA = [a0, a1], segI = [i0, i1];
+    if (a0 > a1){
+      snap('empty', par ? `區間是空的 → 回傳 None，${par} 的${side === 'l' ? '左' : '右'}邊沒有子節點` : '區間是空的 → 回傳 None', { segA, segI });
+      stack.pop(); return null;
+    }
+    const ra = kind === 'rpre' ? a0 : a1, v = A[ra];
+    snap('root', kind === 'rpre' ? `前序區間 ${A.slice(a0, a1 + 1).join('')} 的第一個是 ${v} → ${v} 是這棵子樹的根` : `後序區間 ${A.slice(a0, a1 + 1).join('')} 的最後一個是 ${v} → ${v} 是這棵子樹的根`, { segA, segI, rootA:ra, cur:v });
+    const k = I.indexOf(v);
+    if (k < i0 || k > i1) throw new Error(`兩個序列互相矛盾：${v} 應該在中序的 ${I.slice(i0, i1 + 1).join('')} 這一段裡，卻找不到。請檢查輸入`);
+    built.push(v); nodes[v] = { l:null, r:null };
+    const L = k - i0, R = i1 - k;
+    const ls = I.slice(i0, k).join('') || '無', rs = I.slice(k + 1, i1 + 1).join('') || '無';
+    snap('find', `在中序找到 ${v}：左邊 ${L} 個（${ls}）是左子樹，右邊 ${R} 個（${rs}）是右子樹`, { segA, segI, rootA:ra, k, cur:v });
+    const la = kind === 'rpre' ? [a0 + 1, a0 + L] : [a0, a0 + L - 1];
+    const raR = kind === 'rpre' ? [a0 + L + 1, a1] : [a0 + L, a1 - 1];
+    snap('left', `遞迴建立 ${v} 的左子樹：${nameA}${rng(la[0], la[1])}、中序${rng(i0, k - 1)}`, { segA:la, segI:[i0, k - 1], cur:v });
+    nodes[v].l = rec(la[0], la[1], i0, k - 1, v, 'l');
+    snap('right', `遞迴建立 ${v} 的右子樹：${nameA}${rng(raR[0], raR[1])}、中序${rng(k + 1, i1)}`, { segA:raR, segI:[k + 1, i1], cur:v });
+    nodes[v].r = rec(raR[0], raR[1], k + 1, i1, v, 'r');
+    snap('ret', `${v} 的左右子樹都接好了，回傳 ${v}`, { segA, segI, k, cur:v });
+    stack.pop();
+    return v;
+  }
+  const root = rec(0, A.length - 1, 0, I.length - 1, null, null);
+  const tree = { root, nodes };
+  const ans = kind === 'rpre' ? ORD.post(tree) : ORD.pre(tree);
+  snap('end', `重建完成！這棵樹的${MODES[kind].other}是 ${ans.join(' ')}`);
+  return { frames:F, tree, A, I, answer:ans };
+}
+window.__treeLab = { MODES, CODE, ORD, treeFromLevel, toLevel, travFrames, reconFrames, randomTree, PRESETS, tokenize };
+
+/* =====================================================================
+   3. 語法上色
+   ===================================================================== */
+const KW = {
+  py:new Set('def return for in range if elif else while and or not None True False break is pass import from len print class self'.split(' ')),
+  c:new Set('void int for if else while return break include sizeof char long typedef struct const NULL'.split(' ')),
+  java:new Set('public static void int for if else while return break class boolean true false new String char null this import'.split(' '))
+};
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function highlight(line, lang){
+  const re = lang === 'py'
+    ? /(#.*$)|("[^"]*"|'[^']*')|(\b\d+\b)|([A-Za-z_]\w*)|(\s+)|([\s\S])/g
+    : /(\/\/.*$)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])')|(\b\d+\b)|([A-Za-z_]\w*)|(\s+)|([\s\S])/g;
+  let out = '', m;
+  while ((m = re.exec(line))){
+    if (m[1]) out += `<span class="t-com">${esc(m[1])}</span>`;
+    else if (m[2]) out += `<span class="t-str">${esc(m[2])}</span>`;
+    else if (m[3]) out += `<span class="t-num">${m[3]}</span>`;
+    else if (m[4]){
+      const w = m[4];
+      if (KW[lang].has(w)) out += `<span class="t-kw">${w}</span>`;
+      else if (/^\s*\(/.test(line.slice(re.lastIndex))) out += `<span class="t-fn">${w}</span>`;
+      else out += w;
+    } else out += esc(m[0]);
+  }
+  return out;
+}
+
+/* =====================================================================
+   4. 狀態
+   ===================================================================== */
+const SPS = [0.8, 1.5, 3, 5, 8, 13, 20, 32, 55, 100];
+const st = {
+  mode:'pre', lang:'py', T:treeFromLevel(PRESETS.book), preset:'book',
+  frames:[], wps:[], out:[], recon:null, idx:0, playing:false, acc:0, speed:4,
+  sound:false, spin:false, view:'front', proj:false, edit:false,
+  chal:{ on:false, pos:0, miss:0, wait:-1, answered:-1, msg:null }
+};
+const hashMode = (location.hash || '').slice(1);
+if (MODES[hashMode]) st.mode = hashMode;
+
+/* =====================================================================
+   5. 3D 場景
+   ===================================================================== */
+const stage = $('#stage');
+const HAS3 = !!window.THREE;
+let gl = HAS3, renderer, scene, camera, controls, platform, walker, walkerGlow, walkerLight, tubeAll, tubeDone, curve = null, arcS = [];
+const NO = new Map();        // 節點 3D 物件，key = 節點值
+let stubs = [], ghosts = [];
+const LAY = { pos:{}, depth:{}, maxD:0, n:0, sx:1.4, sy:1.6, r:.5, base:1.5, ino:[] };
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const COL = {};
+function readColors(){
+  if (!HAS3) return;
+  ['--cmp','--pivot','--done','--bad','--accent','--left','--right','--floor','--tile','--tile-range','--muted'].forEach(k => {
+    COL[k.slice(2)] = new THREE.Color(css(k) || '#888888');
+  });
+}
+const RAMP = HAS3 ? ['#5A3DD0', '#2F7EEA', '#1FC0D6'].map(c => new THREE.Color(c)) : [];
+function ramp(t){
+  t = Math.max(0, Math.min(1, t)) * (RAMP.length - 1);
+  const i = Math.min(RAMP.length - 2, Math.floor(t));
+  return RAMP[i].clone().lerp(RAMP[i + 1], t - i);
+}
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+function initScene(){
+  try { renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true }); } catch (e) { gl = false; }
+  if (!gl || !HAS3 || !THREE.OrbitControls){
+    gl = false;
+    const d = document.createElement('div'); d.className = 'nogl';
+    d.textContent = '這個瀏覽器無法啟用 WebGL，3D 畫面無法顯示；下方的序列、步驟說明與程式碼仍可操作。';
+    stage.appendChild(d); return;
+  }
+  readColors();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.prepend(renderer.domElement);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(36, 1, 0.1, 300);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x7c86a0, 0.8));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+  sun.position.set(6, 18, 12); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left:-16, right:16, top:16, bottom:-16, near:1, far:60 });
+  sun.shadow.bias = -0.0006; scene.add(sun);
+  const rim = new THREE.DirectionalLight(0xa9b8ff, 0.35); rim.position.set(-9, 7, -12); scene.add(rim);
+
+  platform = new THREE.Mesh(new THREE.CylinderGeometry(15.5, 15.9, 0.5, 120), new THREE.MeshStandardMaterial({ color:COL.floor, roughness:.92 }));
+  platform.position.y = -0.25; platform.receiveShadow = true; scene.add(platform);
+
+  walker = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshStandardMaterial({ color:0xffffff, emissive:COL.cmp, emissiveIntensity:1.2, roughness:.3 }));
+  walkerGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTexture(), color:COL.cmp, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending }));
+  walkerLight = new THREE.PointLight(COL.cmp, 0.9, 4.5, 2);
+  scene.add(walker, walkerGlow, walkerLight);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.minDistance = 5; controls.maxDistance = 70; controls.maxPolarAngle = Math.PI * 0.49;
+  controls.autoRotateSpeed = 0.9;
+  controls.addEventListener('start', () => { cam.userMoved = true; cam.fly = null; });
+
+  new ResizeObserver(resize).observe(stage);
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+  (mq.addEventListener ? mq.addEventListener('change', themeChanged) : mq.addListener(themeChanged));
+  new MutationObserver(themeChanged).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+}
+function themeChanged(){
+  if (!gl) return;
+  readColors();
+  platform.material.color.copy(COL.floor);
+  NO.forEach(o => o.tileCol.copy(COL.tile));
+  if (tubeAll) tubeAll.material.color.copy(COL.muted);
+}
+function glowTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+function textCanvas(text, opt = {}){
+  const c = opt.canvas || document.createElement('canvas'); c.width = 128; c.height = 128;
+  const g = c.getContext('2d'); g.clearRect(0, 0, 128, 128);
+  const size = text.length >= 3 ? 46 : text.length === 2 ? 58 : 76;
+  g.font = `700 ${size}px "Bricolage Grotesque","Noto Sans TC",system-ui,sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  if (opt.pill){
+    g.fillStyle = opt.pill; g.beginPath(); g.arc(64, 64, 56, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#fff'; g.fillText(text, 64, 68);
+  } else {
+    g.lineWidth = 10; g.strokeStyle = 'rgba(10,14,24,.75)'; g.strokeText(text, 64, 68);
+    g.fillStyle = '#fff'; g.fillText(text, 64, 68);
+  }
+  return c;
+}
+
+/* ---------- 版面：x = 中序位置、y = 深度 ---------- */
+function computeLayout(T){
+  const ino = ORD.in(T), dm = depthMap(T), n = ino.length;
+  LAY.ino = ino; LAY.n = n; LAY.depth = dm.d; LAY.maxD = dm.max; LAY.par = dm.par;
+  LAY.sx = Math.min(1.75, 17.5 / Math.max(1, n));
+  LAY.sy = Math.min(1.75, 8.4 / Math.max(1, dm.max));
+  LAY.r = Math.min(0.5, LAY.sx * 0.34);
+  LAY.base = 1.25 + LAY.r;
+  LAY.pos = {};
+  ino.forEach((v, i) => { LAY.pos[v] = { x:(i - (n - 1) / 2) * LAY.sx, y:LAY.base + (dm.max - dm.d[v]) * LAY.sy, z:0 }; });
+}
+function wpPos(w){
+  const p = LAY.pos[w.v], r = LAY.r, off = r * 1.85, zf = r * 0.55;
+  switch (w.at){
+    case 'S': case 'E': return V(p.x, p.y + r * 2.8, zf);
+    case 'L': return V(p.x - off, p.y + r * 0.3, zf);
+    case 'B': return V(p.x, p.y - off, zf);
+    case 'R': return V(p.x + off, p.y + r * 0.3, zf);
+    case 'NL': return V(p.x - LAY.sx * 0.42, p.y - Math.min(LAY.sy * 0.6, r * 2.6), zf);
+    case 'NR': return V(p.x + LAY.sx * 0.42, p.y - Math.min(LAY.sy * 0.6, r * 2.6), zf);
+    case 'T': return V(p.x, p.y + r * 2.0, 0);
+  }
+  return V(p.x, p.y, 0);
+}
+const SPHERE = HAS3 ? new THREE.SphereGeometry(1, 40, 28) : null;
+const CYL = HAS3 ? new THREE.CylinderGeometry(1, 1, 1, 12) : null;
+const TILE = HAS3 ? new THREE.BoxGeometry(1, 0.06, 1) : null;
+const PLANE = HAS3 ? new THREE.PlaneGeometry(1, 1) : null;
+const RING = HAS3 ? new THREE.TorusGeometry(1, 0.22, 10, 28) : null;
+
+function makeNode(v){
+  const mesh = new THREE.Mesh(SPHERE, new THREE.MeshStandardMaterial({ color:0x5a3dd0, roughness:.32, metalness:.1, emissive:new THREE.Color(0) }));
+  mesh.castShadow = true; mesh.userData.v = v;
+  const lab = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(textCanvas(v)), depthTest:false, depthWrite:false, transparent:true }));
+  lab.renderOrder = 10;
+  const bc = document.createElement('canvas');
+  const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(textCanvas('1', { canvas:bc, pill:'#1FA85B' })), depthTest:false, depthWrite:false, transparent:true }));
+  badge.renderOrder = 11; badge.visible = false;
+  const edge = new THREE.Mesh(CYL, new THREE.MeshStandardMaterial({ color:0x8792a8, roughness:.6 }));
+  edge.castShadow = true; edge.visible = false;
+  const marker = new THREE.Mesh(SPHERE, new THREE.MeshStandardMaterial({ color:0x8792a8, emissive:new THREE.Color(0), roughness:.4 }));
+  marker.visible = false;
+  const tile = new THREE.Mesh(TILE, new THREE.MeshStandardMaterial({ color:COL.tile, roughness:.75 }));
+  tile.receiveShadow = true;
+  const tlab = new THREE.Mesh(PLANE, new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(textCanvas(v)), transparent:true, depthWrite:false }));
+  tlab.rotation.x = -Math.PI / 2;
+  const projGeo = new THREE.BufferGeometry().setFromPoints([V(0, 0, 0), V(0, 1, 0)]);
+  const proj = new THREE.Line(projGeo, new THREE.LineDashedMaterial({ color:0x8792a8, dashSize:0.12, gapSize:0.1, transparent:true, opacity:.7 }));
+  scene.add(mesh, lab, badge, edge, marker, tile, tlab, proj);
+  return { v, mesh, lab, badge, bc, badgeN:-1, edge, marker, tile, tlab, proj,
+    cur:V(0, 0.2, 0), s:0, hl:0, done:0, shake:0, tileCol:COL.tile.clone(), base:new THREE.Color(0x5a3dd0) };
+}
+function removeNode(o){
+  [o.mesh, o.lab, o.badge, o.edge, o.marker, o.tile, o.tlab, o.proj].forEach(m => { scene.remove(m); if (m.material){ if (m.material.map) m.material.map.dispose(); m.material.dispose(); } });
+  o.proj.geometry.dispose();
+}
+function syncScene(){
+  computeLayout(st.T);
+  if (!gl) return;
+  const keep = new Set(Object.keys(st.T.nodes));
+  NO.forEach((o, v) => { if (!keep.has(v)){ removeNode(o); NO.delete(v); } });
+  keep.forEach(v => {
+    if (!NO.has(v)){ const o = makeNode(v); const p = LAY.pos[v]; o.cur.set(p.x, isRecon(st.mode) ? 0.2 : p.y, 0); NO.set(v, o); }
+    const o = NO.get(v);
+    o.base = ramp(LAY.maxD ? LAY.depth[v] / LAY.maxD : 0);
+  });
+  // 空子節點的小圓環
+  stubs.forEach(s => { scene.remove(s.mesh); s.mesh.material.dispose(); }); stubs = [];
+  Object.entries(st.T.nodes).forEach(([v, n]) => {
+    ['l','r'].forEach(side => {
+      if (n[side] != null) return;
+      const mesh = new THREE.Mesh(RING, new THREE.MeshStandardMaterial({ color:COL.muted, transparent:true, opacity:.55, emissive:new THREE.Color(0) }));
+      scene.add(mesh); stubs.push({ v, side, mesh, hot:0 });
+    });
+  });
+  rebuildGhosts();
+  if (!cam.userMoved) goView(st.view, false);
+}
+function rebuildPath(){
+  if (!gl) return;
+  [tubeAll, tubeDone].forEach(t => { if (t){ scene.remove(t); t.geometry.dispose(); t.material.dispose(); } });
+  tubeAll = tubeDone = null; curve = null; arcS = [];
+  if (isRecon(st.mode) || st.mode === 'level' || st.wps.length < 2) return;
+  const pts = st.wps.map(wpPos);
+  curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+  const D = 12, lens = curve.getLengths((pts.length - 1) * D), total = lens[lens.length - 1] || 1;
+  arcS = pts.map((_, k) => lens[k * D] / total);
+  const M = Math.min(1600, pts.length * 14);
+  tubeAll = new THREE.Mesh(new THREE.TubeGeometry(curve, M, LAY.r * 0.05, 6, false), new THREE.MeshStandardMaterial({ color:COL.muted, transparent:true, opacity:.28, roughness:.6 }));
+  tubeDone = new THREE.Mesh(new THREE.TubeGeometry(curve, M, LAY.r * 0.075, 6, false), new THREE.MeshStandardMaterial({ color:COL.cmp, emissive:COL.cmp, emissiveIntensity:.55, roughness:.4 }));
+  tubeDone.userData.M = M;
+  tubeDone.geometry.setDrawRange(0, 0);
+  scene.add(tubeAll, tubeDone);
+}
+function rebuildGhosts(){
+  if (!gl) return;
+  ghosts.forEach(g => { scene.remove(g.mesh); g.mesh.material.dispose(); }); ghosts = [];
+  if (!st.edit || isRecon(st.mode)) return;
+  Object.entries(st.T.nodes).forEach(([v, n]) => {
+    ['l','r'].forEach(side => {
+      if (n[side] != null) return;
+      const p = LAY.pos[v];
+      const mesh = new THREE.Mesh(SPHERE, new THREE.MeshStandardMaterial({ color:COL.accent, transparent:true, opacity:.28, roughness:.5, depthWrite:false }));
+      mesh.position.set(p.x + (side === 'l' ? -1 : 1) * LAY.sx * 0.5, Math.max(0.6, p.y - LAY.sy * 0.75), 0);
+      mesh.scale.setScalar(LAY.r * 0.7);
+      mesh.userData.ghost = { v, side };
+      scene.add(mesh); ghosts.push({ mesh });
+    });
+  });
+}
+
+/* ---------- 鏡頭 ---------- */
+const cam = { userMoved:false, fly:null };
+const VIEWS = { front:[0, 0.16, 1], angle:[0.6, 0.42, 0.85], top:[0, 1, 0.2] };
+function treeBox(){ const W = LAY.sx * Math.max(LAY.n, 3) + 2.5, H = LAY.base + LAY.maxD * LAY.sy + LAY.r * 3 + 0.6; return { W, H }; }
+function fitDistance(){
+  const { W, H } = treeBox(), vf = camera.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+  return Math.max((W / 2) / Math.tan(hf / 2), (H / 2 + 0.8) / Math.tan(vf / 2)) * 1.06;
+}
+function goView(name, instant){
+  if (!gl) return;
+  st.view = name; cam.userMoved = false;
+  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === name)));
+  const { H } = treeBox(), d = fitDistance() * (name === 'top' ? 1.05 : 1);
+  const tgt = V(0, name === 'top' ? 0.6 : H / 2, 0);
+  const pos = V(...VIEWS[name]).normalize().multiplyScalar(d).add(tgt);
+  if (instant || reduceMotion){ camera.position.copy(pos); controls.target.copy(tgt); controls.update(); cam.fly = null; return; }
+  cam.fly = { p0:camera.position.clone(), t0:controls.target.clone(), p1:pos, t1:tgt, t:0 };
+}
+function resize(){
+  if (!gl) return;
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix();
+  if (!cam.userMoved) goView(st.view, true);
+}
+
+/* ---------- 走訪者 ---------- */
+const W = { s:0, s0:0, s1:0, t:1, dur:.3, p0:null, p1:null, hop:false };
+function moveWalker(f, instant){
+  if (!gl || f.wp == null) return;
+  const dur = tweenDur();
+  if (curve){
+    const target = arcS[f.wp] ?? 0;
+    const steps = Math.abs(target - W.s) * st.wps.length;
+    W.s0 = W.s; W.s1 = target; W.t = instant ? 1 : 0; W.dur = dur * Math.min(4, Math.max(1, Math.sqrt(steps))); W.hop = false;
+    if (instant) W.s = target;
+  } else {
+    W.p0 = walker.position.clone(); W.p1 = wpPos(st.wps[f.wp]); W.t = instant ? 1 : 0; W.dur = dur * 1.3; W.hop = true;
+    if (instant) walker.position.copy(W.p1);
+  }
+}
+function tweenDur(){ return st.playing ? Math.max(0.08, Math.min(0.5, 0.95 / SPS[st.speed - 1])) : 0.42; }
+
+/* ---------- 指標互動 ---------- */
+const tip = $('#tip');
+const ray = HAS3 ? new THREE.Raycaster() : null, ndc = HAS3 ? new THREE.Vector2() : null;
+function pick(e){
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const objs = [...NO.values()].filter(o => o.s > 0.3).map(o => o.mesh).concat(ghosts.map(g => g.mesh));
+  const hit = ray.intersectObjects(objs, false)[0];
+  if (!hit) return null;
+  return hit.object.userData.ghost ? { ghost:hit.object.userData.ghost } : { v:hit.object.userData.v };
+}
+function tipFor(e, h){
+  const r = stage.getBoundingClientRect();
+  let text;
+  if (h.ghost) text = `點一下：在 ${h.ghost.v} 新增${h.ghost.side === 'l' ? '左' : '右'}子節點`;
+  else {
+    const n = st.T.nodes[h.v];
+    text = `${h.v}　深度 ${LAY.depth[h.v]}　左 ${n.l ?? '∅'}　右 ${n.r ?? '∅'}`;
+    if (st.edit && !isRecon(st.mode)) text += (n.l == null && n.r == null && h.v !== st.T.root) ? '　點一下刪除' : '';
+  }
+  tip.textContent = text;
+  tip.style.left = (e.clientX - r.left) + 'px'; tip.style.top = (e.clientY - r.top) + 'px'; tip.hidden = false;
+}
+function bindPointer(){
+  if (!gl) return;
+  const cv = renderer.domElement;
+  let down = null;
+  cv.addEventListener('pointerdown', e => { down = { x:e.clientX, y:e.clientY }; });
+  cv.addEventListener('pointerup', e => {
+    if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6){ down = null; return; }
+    down = null;
+    const h = pick(e); if (!h) return;
+    if (h.ghost) return addChild(h.ghost.v, h.ghost.side);
+    if (st.edit && !isRecon(st.mode)) return removeLeaf(h.v);
+    if (st.chal.on && !isRecon(st.mode)) return chalClick(h.v);
+  });
+  cv.addEventListener('pointermove', e => {
+    if (e.buttons) { tip.hidden = true; return; }
+    const h = pick(e);
+    cv.classList.toggle('on-node', !!h && (st.edit || st.chal.on || !!h.ghost));
+    if (h) tipFor(e, h); else tip.hidden = true;
+  });
+  cv.addEventListener('pointerleave', () => { tip.hidden = true; });
+}
+
+/* =====================================================================
+   6. 音效
+   ===================================================================== */
+let actx = null, lastBeep = 0;
+function ensureAudio(){ if (!st.sound) return; try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (_) {} }
+function beep(freq, type = 'triangle', len = 0.14, vol = 0.09){
+  if (!st.sound || !actx) return;
+  const now = performance.now(); if (now - lastBeep < 26) return; lastBeep = now;
+  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + len + 0.02);
+}
+const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31, 33, 36];
+const note = i => 262 * Math.pow(2, SCALE[i % SCALE.length] / 12) * (i >= SCALE.length ? 2 : 1);
+function soundFor(f, prev){
+  if (!st.sound) return;
+  if (isRecon(st.mode)){ if (f.tag === 'find') beep(note(f.built.length - 1)); else if (f.tag === 'empty') beep(180, 'sine', .08, .05); return; }
+  if (prev && f.out.length > prev.out.length) beep(note(f.out.length - 1));
+  else if (f.tag === 'null') beep(170, 'sine', .07, .04);
+}
+function fanfare(){ if (!st.sound) return; [0, 2, 4, 5].forEach((d, i) => setTimeout(() => { lastBeep = 0; beep(note(d + 4), 'triangle', .22, .08); }, i * 95)); }
+
+/* =====================================================================
+   7. 介面
+   ===================================================================== */
+const el = {
+  modes:$('#modes'), hudZh:$('#hudZh'), hudEn:$('#hudEn'), st1:$('#st1'), st2:$('#st2'), st1k:$('#st1k'), st2k:$('#st2k'),
+  narr:$('#narr'), step:$('#stepLbl'), labA:$('#labA'), labB:$('#labB'), labC:$('#labC'), cellsA:$('#cellsA'), cellsB:$('#cellsB'), stripB:$('#stripB'), chips:$('#chips'),
+  timeline:$('#timeline'), play:$('#bPlay'), playIcon:$('#playIcon'), speed:$('#speed'), speedOut:$('#speedOut'), size:$('#size'), sizeOut:$('#sizeOut'),
+  code:$('#code'), runCmd:$('#runCmd'), idea:$('#idea'), memo:$('#memo'), cx:$('#cx'), legend:$('#legend'), err:$('#err'), hint:$('#hint'),
+  travData:$('#travData'), reconData:$('#reconData'), levelIn:$('#levelIn'), seqA:$('#seqA'), seqI:$('#seqI'), seqALab:$('#seqALab'),
+  trick:$('#trick'), projBtn:$('#projBtn'), editBtn:$('#editBtn'), chalBtn:$('#chalBtn')
+};
+let uiDirty = true, lineEls = [], hotLines = [], lastOutLen = 0;
+
+[['trav', '走訪', ['pre','in','post','level']], ['recon', '反推二元樹', ['rpre','rpost']]].forEach(([g, cap, keys]) => {
+  const grp = document.createElement('div'); grp.className = 'mode-group';
+  grp.innerHTML = `<span class="mode-cap">${cap}</span>`;
+  keys.forEach(k => {
+    const m = MODES[k], b = document.createElement('button');
+    b.type = 'button'; b.className = 'mode-tab'; b.setAttribute('role', 'tab'); b.dataset.mode = k;
+    b.innerHTML = `<span class="zh">${m.zh}</span><span class="en">${m.en}</span>`;
+    b.addEventListener('click', () => setMode(k));
+    grp.appendChild(b);
+  });
+  el.modes.appendChild(grp);
+});
+
+function renderCode(){
+  const c = CODE[st.mode][st.lang];
+  el.code.innerHTML = c.lines.map((ln, i) => `<div class="ln"><span class="no">${i + 1}</span><span class="tx">${highlight(ln, st.lang) || ' '}</span></div>`).join('');
+  lineEls = [...el.code.children]; hotLines = [];
+  const m = MODES[st.mode];
+  el.runCmd.textContent = st.lang === 'py' ? `python ${m.file}.py`
+    : st.lang === 'c' ? `gcc ${m.file}.c -o ${m.file} && ./${m.file}`
+    : `javac -encoding UTF-8 ${m.cls}.java && java ${m.cls}`;
+  markLine(st.frames[st.idx] ? st.frames[st.idx].tag : null, true);
+}
+function markLine(tag, instant){
+  hotLines.forEach(i => lineEls[i] && lineEls[i].classList.remove('hot'));
+  hotLines = (CODE[st.mode][st.lang].map[tag] || []).slice();
+  hotLines.forEach(i => lineEls[i] && lineEls[i].classList.add('hot'));
+  const first = lineEls[hotLines[0]];
+  if (!first) return;
+  const box = el.code, top = first.offsetTop, h = box.clientHeight;
+  if (box.scrollHeight <= h + 2) return;
+  if (top < box.scrollTop + 24 || top > box.scrollTop + h - 48)
+    box.scrollTo({ top:Math.max(0, top - h / 3), behavior:(instant || reduceMotion || st.playing && st.speed > 6) ? 'auto' : 'smooth' });
+}
+const LEGENDS = {
+  trav:[['var(--cmp)','走訪者目前位置'],['var(--pivot)','在呼叫堆疊上（還沒走完）'],['var(--done)','已輸出'],['var(--muted)','空子節點 None']],
+  level:[['var(--cmp)','剛取出的節點'],['var(--pivot)','在佇列中等待'],['var(--done)','已輸出']],
+  recon:[['var(--cmp)','目前的根'],['var(--left)','左子樹的範圍'],['var(--right)','右子樹的範圍'],['var(--tile-range)','目前處理的區間']]
+};
+function renderTheory(){
+  const m = MODES[st.mode];
+  el.hudZh.textContent = isRecon(st.mode) ? `反推：${m.zh}` : m.zh;
+  el.hudEn.textContent = m.en + (m.order ? ` · ${m.order}` : '');
+  el.idea.textContent = m.idea; el.memo.innerHTML = m.memo;
+  el.cx.innerHTML = m.cx.map(([k, v]) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+  el.legend.innerHTML = LEGENDS[isRecon(st.mode) ? 'recon' : st.mode === 'level' ? 'level' : 'trav'].map(([c, t]) => `<li><span class="sw" style="background:${c}"></span>${t}</li>`).join('');
+  document.querySelectorAll('.mode-tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.mode === st.mode)));
+  const dfs = ['pre','in','post'].includes(st.mode);
+  el.trick.parentElement.hidden = !dfs;
+  el.trick.querySelectorAll('[data-side]').forEach(s => s.classList.toggle('on', s.dataset.side === st.mode));
+  el.travData.hidden = isRecon(st.mode); el.reconData.hidden = !isRecon(st.mode);
+  el.seqALab.textContent = m.seq || '前序';
+  el.projBtn.hidden = isRecon(st.mode);
+  el.hint.innerHTML = isRecon(st.mode)
+    ? '輸入兩個序列後按「反推」，可以用 <code>ABDECF</code> 這種連寫，或用逗號、空白分隔。按「換我挑戰」會在每一步停下來，讓你先在中序列點出根的位置。快捷鍵：<kbd>空白</kbd> 播放、<kbd>←</kbd><kbd>→</kbd> 單步。'
+    : '拖曳畫面旋轉、滾輪或雙指縮放。按「換我挑戰」後依序點選節點；按「編輯樹」可點虛線圓圈新增節點、點葉節點刪除。快捷鍵：<kbd>空白</kbd> 播放、<kbd>←</kbd><kbd>→</kbd> 單步。';
+}
+function buildStrips(){
+  const n = LAY.n, mk = (box, count) => { box.innerHTML = ''; box.classList.toggle('dense', count > 14); for (let i = 0; i < count; i++){ const d = document.createElement('div'); d.className = 'cell'; d.dataset.i = i; box.appendChild(d); } };
+  if (isRecon(st.mode)){
+    el.labA.textContent = MODES[st.mode].seq; el.labB.textContent = '中序'; el.labC.textContent = '呼叫堆疊';
+    el.stripB.hidden = false;
+    mk(el.cellsA, n); mk(el.cellsB, n);
+    [...el.cellsA.children].forEach((c, i) => c.textContent = st.recon.A[i]);
+    [...el.cellsB.children].forEach((c, i) => c.textContent = st.recon.I[i]);
+  } else {
+    el.labA.textContent = '輸出'; el.labC.textContent = st.mode === 'level' ? '佇列' : '呼叫堆疊';
+    el.stripB.hidden = true; mk(el.cellsA, n);
+  }
+  lastOutLen = 0;
+}
+function renderStrips(f){
+  if (isRecon(st.mode)){
+    const built = new Set(f.built), A = st.recon.A, I = st.recon.I;
+    const L = f.k >= 0 && f.segI ? f.k - f.segI[0] : -1;
+    [...el.cellsA.children].forEach((c, i) => {
+      let cls = 'cell';
+      const inSeg = f.segA && i >= f.segA[0] && i <= f.segA[1];
+      if (i === f.rootA) cls += ' root';
+      else if (inSeg && L >= 0){
+        const a0 = f.segA[0];
+        const isLeft = st.mode === 'rpre' ? (i >= a0 + 1 && i <= a0 + L) : (i >= a0 && i <= a0 + L - 1);
+        cls += isLeft ? ' lft' : ' rgt';
+      } else if (inSeg) cls += ' seg';
+      else if (built.has(A[i])) cls += ' used';
+      c.className = cls;
+    });
+    [...el.cellsB.children].forEach((c, i) => {
+      let cls = 'cell';
+      const inSeg = f.segI && i >= f.segI[0] && i <= f.segI[1];
+      if (i === f.k) cls += ' root';
+      else if (inSeg && f.k >= 0) cls += i < f.k ? ' lft' : ' rgt';
+      else if (inSeg) cls += ' seg';
+      else if (built.has(I[i])) cls += ' used';
+      c.className = cls;
+    });
+    el.cellsB.classList.toggle('pick', st.chal.on && st.chal.wait >= 0);
+    el.chips.innerHTML = f.stack.length ? f.stack.map((s, i) => `<span class="c${i === f.stack.length - 1 ? ' top' : ''}">${s}</span>`).join('<span class="arrow">›</span>') : '<span class="none">（空）</span>';
+  } else {
+    const cells = el.cellsA.children;
+    for (let i = 0; i < cells.length; i++){
+      const v = f.out[i];
+      const cls = 'cell' + (v == null ? ' empty' : ' out') + (v != null && i === f.out.length - 1 && f.out.length > lastOutLen ? ' new' : '');
+      if (cells[i].className !== cls) cells[i].className = cls;
+      cells[i].textContent = v ?? '·';
+    }
+    lastOutLen = f.out.length;
+    if (st.mode === 'level'){
+      el.chips.innerHTML = f.queue && f.queue.length ? '<span class="arrow">前端</span>' + f.queue.map(v => `<span class="c">${v}</span>`).join('') + '<span class="arrow">尾端</span>' : '<span class="none">（佇列是空的）</span>';
+    } else {
+      const items = f.stack.map((s, i) => `<span class="c${i === f.stack.length - 1 && !f.nul ? ' top' : ''}">${s}</span>`);
+      if (f.nul) items.push(`<span class="c nul top">${st.mode === 'pre' ? 'preorder' : st.mode === 'in' ? 'inorder' : 'postorder'}(None)</span>`);
+      el.chips.innerHTML = items.length ? items.join('<span class="arrow">›</span>') : '<span class="none">（空）</span>';
+    }
+  }
+}
+function renderUI(){
+  const f = st.frames[st.idx]; if (!f) return;
+  const last = st.frames.length - 1;
+  el.narr.textContent = st.chal.msg || f.desc;
+  el.narr.classList.toggle('chal', !!st.chal.msg);
+  el.narr.setAttribute('aria-live', st.playing ? 'off' : 'polite');
+  el.step.textContent = `步驟 ${st.idx} / ${last}`;
+  if (isRecon(st.mode)){
+    el.st1k.textContent = '已建立'; el.st1.textContent = `${f.built.length}/${LAY.n}`;
+    el.st2k.textContent = '遞迴深度'; el.st2.textContent = f.stack.length;
+  } else {
+    el.st1k.textContent = '已輸出'; el.st1.textContent = `${f.out.length}/${LAY.n}`;
+    el.st2k.textContent = st.mode === 'level' ? '佇列長度' : '堆疊深度';
+    el.st2.textContent = st.mode === 'level' ? (f.queue ? f.queue.length : 0) : f.stack.length + (f.nul ? 1 : 0);
+  }
+  el.timeline.max = last; el.timeline.value = st.idx;
+  el.play.setAttribute('aria-label', st.playing ? '暫停' : '播放');
+  el.playIcon.innerHTML = st.playing ? '<path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/>' : '<path d="M7 4.5v15L19.5 12z"/>';
+  markLine(f.tag);
+  renderStrips(f);
+}
+
+/* ---------- 流程控制 ---------- */
+function go(i, withSound, instant){
+  i = Math.max(0, Math.min(st.frames.length - 1, i));
+  const prev = st.frames[st.idx];
+  st.idx = i;
+  const f = st.frames[i];
+  if (!st.chal.on) st.chal.msg = null;
+  if (!isRecon(st.mode)) moveWalker(f, instant);
+  if (withSound) soundFor(f, prev);
+  if (st.chal.on && isRecon(st.mode) && i === st.frames.length - 1){
+    st.playing = false; celebrate = performance.now(); fanfare();
+    endChallenge(st.chal.miss ? `完成！答錯 ${st.chal.miss} 次。${f.desc}` : `全部答對！${f.desc}`);
+  }
+  uiDirty = true;
+}
+function gateRecon(next){
+  const c = st.chal;
+  if (!(c.on && isRecon(st.mode))) return true;
+  const nf = st.frames[next];
+  if (nf && nf.tag === 'root' && c.answered !== next){
+    c.wait = next; c.resume = st.playing; pause();
+    c.msg = `換你：目前區間的根是誰？在下方「中序」列點出它的位置。`;
+    uiDirty = true; return false;
+  }
+  return true;
+}
+function step(d){
+  const next = st.idx + d;
+  if (d > 0 && !gateRecon(next)) return;
+  if (st.chal.on && isRecon(st.mode)) st.chal.msg = null;
+  go(next, true);
+}
+function play(){
+  if (st.chal.on && !isRecon(st.mode)) endChallenge();
+  if (st.idx >= st.frames.length - 1) go(0, false, true);
+  st.playing = true; st.acc = 0.999; uiDirty = true;
+}
+function pause(){ st.playing = false; uiDirty = true; }
+function toggle(){ st.playing ? pause() : play(); }
+
+function buildTrav(){
+  const r = travFrames(st.mode, st.T);
+  st.frames = r.frames; st.wps = r.wps; st.out = r.out; st.idx = 0;
+}
+function rebuildAll(keepPlaying){
+  const was = st.playing && keepPlaying; st.playing = false;
+  if (!isRecon(st.mode)) buildTrav();
+  syncScene(); rebuildPath(); buildStrips();
+  W.s = 0; W.t = 1;
+  if (gl && st.frames[0] && !isRecon(st.mode)){
+    const p0 = curve ? curve.getPointAt(0) : wpPos(st.wps[st.frames[0].wp]);
+    walker.position.copy(p0);
+  }
+  go(0, false, true);
+  el.levelIn.value = toLevel(st.T);
+  if (was) play();
+}
+function runRecon(A, I){
+  try {
+    const r = reconFrames(st.mode, A, I);
+    st.recon = r; st.T = r.tree; st.frames = r.frames; st.idx = 0;
+    el.seqA.value = A.join(A.some(x => x.length > 1) ? ',' : ''); el.seqI.value = I.join(I.some(x => x.length > 1) ? ',' : '');
+    hideErr();
+    rebuildAll(false);
+    return true;
+  } catch (e){ showErr(e.message); return false; }
+}
+function reconFromTree(){
+  const A = st.mode === 'rpre' ? ORD.pre(st.T) : ORD.post(st.T);
+  return runRecon(A, ORD.in(st.T));
+}
+function setMode(k){
+  if (st.chal.on) endChallenge();
+  const wasRecon = isRecon(st.mode);
+  st.mode = k; st.playing = false;
+  if (!cam.userMoved && (wasRecon !== isRecon(k) || !st.frames.length)) st.view = isRecon(k) ? 'angle' : 'front';
+  if (isRecon(k)){
+    if (st.edit) toggleEdit(false);
+    reconFromTree();
+  } else rebuildAll(false);
+  renderTheory(); renderCode();
+  if (gl){ walker.visible = walkerGlow.visible = !isRecon(k); walkerLight.intensity = isRecon(k) ? 0 : 0.9; }
+}
+function setTree(T, preset){
+  st.T = T; st.preset = preset || null;
+  document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === preset)));
+  if (st.chal.on) endChallenge();
+  rebuildAll(false);
+}
+function showErr(msg){ el.err.textContent = msg; el.err.hidden = false; }
+function hideErr(){ el.err.hidden = true; }
+
+/* ---------- 編輯樹 ---------- */
+function toggleEdit(on){
+  st.edit = on ?? !st.edit;
+  el.editBtn.setAttribute('aria-pressed', String(st.edit));
+  el.editBtn.textContent = st.edit ? '完成編輯' : '編輯樹';
+  if (st.edit){ pause(); if (st.chal.on) endChallenge(); }
+  rebuildGhosts();
+}
+function addChild(v, side){
+  const used = new Set(Object.keys(st.T.nodes));
+  if (used.size >= 20) return showErr('節點最多 20 個，畫面才放得下');
+  let name = null;
+  for (let c = 65; c <= 90; c++){ const s = String.fromCharCode(c); if (!used.has(s)){ name = s; break; } }
+  if (!name) return showErr('A～Z 都用完了');
+  const T = JSON.parse(JSON.stringify(st.T));
+  T.nodes[v][side] = name; T.nodes[name] = { l:null, r:null };
+  hideErr(); setTree(T, null); rebuildGhosts();
+}
+function removeLeaf(v){
+  const n = st.T.nodes[v];
+  if (v === st.T.root) return showErr('根節點不能刪除');
+  if (n.l != null || n.r != null) return showErr(`${v} 底下還有子節點，只能刪除葉節點（沒有子節點的節點）`);
+  const T = JSON.parse(JSON.stringify(st.T));
+  Object.values(T.nodes).forEach(x => { if (x.l === v) x.l = null; if (x.r === v) x.r = null; });
+  delete T.nodes[v];
+  hideErr(); setTree(T, null); rebuildGhosts();
+}
+
+/* ---------- 挑戰模式 ---------- */
+const HINT = {
+  pre:'前序是「根 → 左 → 右」：先輸出目前的節點，左子樹全部走完才輪到右子樹。',
+  in:'中序是「左 → 根 → 右」：一路往左走到底，最左邊的節點最先輸出。',
+  post:'後序是「左 → 右 → 根」：一個節點要等左右子樹都輸出完才輪到它。',
+  level:'層序是一層一層、由左到右。'
+};
+function startChallenge(){
+  const c = st.chal;
+  Object.assign(c, { on:true, pos:0, miss:0, wait:-1, answered:-1 });
+  el.chalBtn.setAttribute('aria-pressed', 'true'); el.chalBtn.textContent = '結束挑戰';
+  if (st.edit) toggleEdit(false);
+  pause(); go(0, false, true);
+  c.msg = isRecon(st.mode)
+    ? '挑戰開始：按播放或 →，每遇到要決定根的時候會停下來，請在「中序」列點出根的位置。'
+    : `挑戰開始：依「${MODES[st.mode].order}」的順序，在 3D 畫面上依序點選節點。`;
+  uiDirty = true;
+}
+function endChallenge(msg){
+  const c = st.chal; c.on = false; c.wait = -1; c.msg = msg || null;
+  el.chalBtn.setAttribute('aria-pressed', 'false'); el.chalBtn.textContent = '換我挑戰';
+  uiDirty = true;
+}
+function chalClick(v){
+  const c = st.chal, exp = st.out[c.pos];
+  if (v === exp){
+    const target = st.frames.findIndex(f => f.out.length === c.pos + 1);
+    c.pos++;
+    go(target, true);
+    if (c.pos >= st.out.length){
+      go(st.frames.length - 1, false);
+      celebrate = performance.now(); fanfare();
+      endChallenge(c.miss ? `完成！答錯 ${c.miss} 次。${MODES[st.mode].zh}是 ${st.out.join(' ')}` : `全部答對！${MODES[st.mode].zh}是 ${st.out.join(' ')}`);
+    } else { c.msg = `答對，第 ${c.pos} 個是 ${v}。下一個是？`; uiDirty = true; }
+  } else {
+    c.miss++;
+    const o = NO.get(v); if (o) o.shake = 1;
+    if (st.sound){ lastBeep = 0; beep(140, 'sawtooth', .18, .05); }
+    c.msg = st.out.indexOf(v) < c.pos ? `${v} 已經輸出過了。下一個是？` : `還沒輪到 ${v}。${HINT[st.mode]}`;
+    uiDirty = true;
+  }
+}
+el.cellsB.addEventListener('click', e => {
+  const c = st.chal, cell = e.target.closest('.cell');
+  if (!cell || !c.on || c.wait < 0) return;
+  const i = +cell.dataset.i, exp = st.recon.I.indexOf(st.frames[c.wait].cur);
+  if (i === exp){
+    c.answered = c.wait; const next = c.wait; c.wait = -1; c.msg = null;
+    go(next, true);
+    if (c.resume){ st.playing = true; st.acc = 0; }
+  } else {
+    c.miss++;
+    cell.classList.remove('wrong'); void cell.offsetWidth; cell.classList.add('wrong');
+    if (st.sound){ lastBeep = 0; beep(140, 'sawtooth', .18, .05); }
+    c.msg = st.mode === 'rpre' ? '不對喔。提示：前序區間（藍框）的「第一個」就是根，再到中序裡找它。' : '不對喔。提示：後序區間（藍框）的「最後一個」就是根，再到中序裡找它。';
+    uiDirty = true;
+  }
+});
+
+/* ---------- 綁定控制項 ---------- */
+el.play.addEventListener('click', () => { ensureAudio(); if (st.chal.on && isRecon(st.mode) && !st.playing){ if (gateRecon(st.idx + 1)){ st.playing = true; uiDirty = true; } return; } toggle(); });
+$('#bPrev').addEventListener('click', () => { pause(); go(st.idx - 1, true); });
+$('#bNext').addEventListener('click', () => { pause(); step(1); });
+$('#bFirst').addEventListener('click', () => { pause(); if (st.chal.on) endChallenge(); go(0, false); });
+$('#bLast').addEventListener('click', () => { pause(); if (st.chal.on) endChallenge(); go(st.frames.length - 1, false); });
+el.timeline.addEventListener('input', () => { pause(); if (st.chal.on) endChallenge(); go(+el.timeline.value); });
+el.speed.addEventListener('input', () => { st.speed = +el.speed.value; el.speedOut.textContent = `${SPS[st.speed - 1]} 步/秒`; });
+el.size.addEventListener('input', () => { el.sizeOut.textContent = el.size.value; });
+el.size.addEventListener('change', () => setTree(randomTree(+el.size.value), 'random'));
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  hideErr();
+  setTree(b.dataset.preset === 'random' ? randomTree(+el.size.value) : treeFromLevel(PRESETS[b.dataset.preset]), b.dataset.preset);
+}));
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => goView(b.dataset.view, false)));
+$('#spinBtn').addEventListener('click', e => { st.spin = !st.spin; e.currentTarget.setAttribute('aria-pressed', String(st.spin)); if (gl) controls.autoRotate = st.spin; });
+el.projBtn.addEventListener('click', () => { st.proj = !st.proj; el.projBtn.setAttribute('aria-pressed', String(st.proj)); });
+el.editBtn.addEventListener('click', () => toggleEdit());
+el.chalBtn.addEventListener('click', () => { ensureAudio(); st.chal.on ? endChallenge() : startChallenge(); });
+$('#soundBtn').addEventListener('click', e => { st.sound = !st.sound; e.currentTarget.setAttribute('aria-pressed', String(st.sound)); ensureAudio(); if (st.sound){ lastBeep = 0; beep(note(4)); } });
+$('#levelForm').addEventListener('submit', e => {
+  e.preventDefault();
+  try { const T = treeFromLevel(el.levelIn.value); if (Object.keys(T.nodes).length > 20) throw new Error('節點最多 20 個，畫面才放得下'); hideErr(); setTree(T, null); }
+  catch (err){ showErr(err.message); }
+});
+$('#reconForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (st.chal.on) endChallenge();
+  runRecon(tokenize(el.seqA.value), tokenize(el.seqI.value));
+});
+$('#fromTree').addEventListener('click', () => { if (st.chal.on) endChallenge(); reconFromTree(); });
+$('#randRecon').addEventListener('click', () => { if (st.chal.on) endChallenge(); st.T = randomTree(6 + Math.floor(Math.random() * 6)); reconFromTree(); });
+document.querySelectorAll('.langs button').forEach(b => b.addEventListener('click', () => {
+  st.lang = b.dataset.lang;
+  document.querySelectorAll('.langs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+  renderCode();
+}));
+$('#copyBtn').addEventListener('click', e => {
+  const btn = e.currentTarget, text = CODE[st.mode][st.lang].text;
+  const ok = () => { btn.textContent = '已複製'; setTimeout(() => btn.textContent = '複製', 1400); };
+  const fallback = () => { const r = document.createRange(); r.selectNodeContents(el.code); const s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = '已選取，按 Ctrl+C'; setTimeout(() => btn.textContent = '複製', 2200); };
+  try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (_) { fallback(); }
+});
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t.closest && t.closest('input,textarea,select')) return;
+  const inTabs = t.closest && t.closest('[role=tablist]');
+  if (e.key === ' ' && !(t.closest && t.closest('button'))){ e.preventDefault(); el.play.click(); }
+  else if (e.key === 'ArrowRight' && !inTabs){ e.preventDefault(); pause(); step(1); }
+  else if (e.key === 'ArrowLeft' && !inTabs){ e.preventDefault(); pause(); go(st.idx - 1, true); }
+});
+
+/* =====================================================================
+   8. 主迴圈
+   ===================================================================== */
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+let lastT = performance.now(), celebrate = -1;
+const tmpV = HAS3 ? new THREE.Vector3() : null, UP = HAS3 ? new THREE.Vector3(0, 1, 0) : null;
+function loop(now){
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+
+  if (st.playing){
+    st.acc += dt * SPS[st.speed - 1];
+    let guard = 0;
+    while (st.acc >= 1 && st.idx < st.frames.length - 1 && guard++ < 6){
+      if (!gateRecon(st.idx + 1)) break;
+      st.acc -= 1; go(st.idx + 1, true);
+    }
+    if (st.idx >= st.frames.length - 1 && st.playing){
+      st.playing = false; uiDirty = true;
+      if (!reduceMotion) celebrate = now;
+      if (!st.chal.on) fanfare();
+    }
+  }
+  if (uiDirty){ uiDirty = false; renderUI(); }
+  if (gl) render3D(now, dt);
+  requestAnimationFrame(loop);
+}
+function render3D(now, dt){
+  const f = st.frames[st.idx];
+  const recon = isRecon(st.mode), dfs = ['pre','in','post'].includes(st.mode);
+  const kPos = 1 - Math.exp(-dt * 9), kCol = 1 - Math.exp(-dt * 10);
+  const built = recon ? new Set(f.built) : null;
+  const outIdx = {}; if (!recon) f.out.forEach((v, i) => outIdx[v] = i);
+  const onStack = new Set(), queued = new Set(f.queue || []);
+  if (!recon) f.stack.forEach(s => { const m = s.match(/\(([^)]*)\)$/); onStack.add(m ? m[1] : s); });
+  const celeb = celebrate > 0 ? (now - celebrate) / 1000 : -1;
+  if (celeb > 3.5) celebrate = -1;
+  const r = LAY.r;
+  const segI = recon ? f.segI : null;
+  const showProj = recon || st.proj;
+
+  NO.forEach((o, v) => {
+    const p = LAY.pos[v]; if (!p) return;
+    const visible = !recon || built.has(v);
+    const ty = visible ? p.y : 0.15;
+    o.cur.x += (p.x - o.cur.x) * kPos; o.cur.y += (ty - o.cur.y) * kPos; o.cur.z += (0 - o.cur.z) * kPos;
+    o.s += ((visible ? 1 : 0) - o.s) * kPos;
+    let x = o.cur.x, y = o.cur.y;
+    if (o.shake > 0){ x += Math.sin(now * 0.06) * 0.12 * o.shake; o.shake = Math.max(0, o.shake - dt * 2.2); }
+    if (celeb >= 0){
+      const order = recon ? LAY.depth[v] * 0.12 + LAY.ino.indexOf(v) * 0.02 : (outIdx[v] ?? 0) * (1.4 / Math.max(1, LAY.n));
+      const tt = celeb - order;
+      if (tt > 0 && tt < 0.45) y += Math.sin(tt / 0.45 * Math.PI) * 0.7;
+    }
+    o.mesh.position.set(x, y, o.cur.z);
+    // 狀態顏色
+    let state = null;
+    if (recon){ if (f.cur === v) state = 'cmp'; }
+    else if (f.cur === v) state = 'cmp';
+    else if (onStack.has(v) || queued.has(v)) state = 'pivot';
+    const isOut = !recon && outIdx[v] != null;
+    o.hl += ((state ? 1 : 0) - o.hl) * kCol;
+    o.done += ((isOut ? 1 : 0) - o.done) * kCol;
+    const m = o.mesh.material;
+    m.color.copy(o.base).lerp(COL.done, o.done * 0.75);
+    if (state){ o.stateCol = COL[state]; }
+    if (o.stateCol && o.hl > 0.003){ m.color.lerp(o.stateCol, (state === 'pivot' ? 0.5 : 0.75) * o.hl); m.emissive.copy(o.stateCol).multiplyScalar((state === 'pivot' ? 0.18 : 0.45) * o.hl); }
+    else m.emissive.setRGB(0, 0, 0);
+    const sc = r * Math.max(0.001, o.s) * (1 + 0.16 * (state === 'cmp' ? o.hl : 0));
+    o.mesh.scale.setScalar(sc);
+    o.mesh.visible = o.s > 0.01;
+    o.lab.position.set(x, y, o.cur.z + r * 0.2);
+    o.lab.scale.setScalar(r * 1.55 * o.s); o.lab.visible = o.s > 0.05;
+    // 輸出順序徽章
+    if (isOut){
+      const num = outIdx[v] + 1;
+      if (o.badgeN !== num){ textCanvas(String(num), { canvas:o.bc, pill:'#1FA85B' }); o.badge.material.map.needsUpdate = true; o.badgeN = num; }
+      o.badge.visible = true; o.badge.position.set(x + r * 0.95, y + r * 0.95, o.cur.z + r * 0.3); o.badge.scale.setScalar(r * 0.95);
+    } else o.badge.visible = false;
+    // 輸出點標記（左側／下方／右側）
+    if (dfs){
+      const off = r * 1.85, zf = r * 0.55;
+      const mp = st.mode === 'pre' ? [x - off, y + r * 0.3] : st.mode === 'in' ? [x, y - off] : [x + off, y + r * 0.3];
+      o.marker.visible = true; o.marker.position.set(mp[0], mp[1], zf); o.marker.scale.setScalar(r * 0.2);
+      o.marker.material.color.copy(isOut ? COL.done : COL.muted);
+      o.marker.material.emissive.copy(isOut ? COL.done : COL.muted).multiplyScalar(isOut ? 0.5 : 0);
+    } else o.marker.visible = false;
+    // 地磚（中序位置）
+    o.tile.position.set(o.cur.x, 0.03, 0); o.tile.scale.set(LAY.sx * 0.9, 1, 1.1);
+    o.tlab.position.set(o.cur.x, 0.065, 0.02); o.tlab.scale.setScalar(Math.min(0.95, LAY.sx * 0.8));
+    o.tile.visible = o.tlab.visible = showProj;
+    let tc = COL.tile;
+    if (recon && segI){
+      const i = LAY.ino.indexOf(v);
+      if (i >= segI[0] && i <= segI[1]) tc = f.k < 0 ? COL['tile-range'] : i === f.k ? COL.cmp : i < f.k ? COL.left : COL.right;
+      else if (built.has(v)) tc = COL.tile;
+    } else if (!recon && isOut && st.mode === 'in') tc = COL.done;
+    o.tileCol.lerp(tc, kCol); o.tile.material.color.copy(o.tileCol);
+    // 投影線
+    o.proj.visible = showProj && o.s > 0.05;
+    if (o.proj.visible){
+      const pos = o.proj.geometry.attributes.position;
+      pos.setXYZ(0, x, y - r * o.s, 0); pos.setXYZ(1, o.cur.x, 0.07, 0); pos.needsUpdate = true;
+      o.proj.computeLineDistances();
+    }
+  });
+  // 邊
+  NO.forEach((o, v) => {
+    const par = LAY.par[v];
+    if (par == null){ o.edge.visible = false; return; }
+    const po = NO.get(par); if (!po) return;
+    const a = po.mesh.position, b = o.mesh.position, s = Math.min(o.s, po.s);
+    if (s < 0.02){ o.edge.visible = false; return; }
+    o.edge.visible = true;
+    tmpV.subVectors(b, a); const len = tmpV.length();
+    o.edge.position.copy(a).addScaledVector(tmpV, 0.5);
+    o.edge.quaternion.setFromUnitVectors(UP, tmpV.clone().normalize());
+    const onPath = !recon && onStack.has(v) && onStack.has(par);
+    const thick = r * (onPath ? 0.12 : 0.075);
+    o.edge.scale.set(thick, len * s, thick);
+    o.edge.material.color.copy(onPath ? COL.pivot : COL.muted);
+  });
+  // 空子節點圓環
+  stubs.forEach(sb => {
+    const show = dfs; sb.mesh.visible = show; if (!show) return;
+    const o = NO.get(sb.v); if (!o) return;
+    const p = wpPos({ v:sb.v, at:sb.side === 'l' ? 'NL' : 'NR' });
+    p.x += o.mesh.position.x - LAY.pos[sb.v].x; p.y += o.mesh.position.y - LAY.pos[sb.v].y;
+    sb.mesh.position.copy(p); sb.mesh.scale.setScalar(r * 0.22);
+    const hot = f.nul && f.cur === sb.v && f.nul === (sb.side === 'l' ? 'L' : 'R');
+    sb.hot += ((hot ? 1 : 0) - sb.hot) * kCol;
+    sb.mesh.material.color.copy(COL.muted).lerp(COL.cmp, sb.hot);
+    sb.mesh.material.emissive.copy(COL.cmp).multiplyScalar(sb.hot * 0.6);
+    sb.mesh.material.opacity = 0.45 + sb.hot * 0.55;
+  });
+  // 走訪者
+  if (!recon){
+    if (W.t < 1){
+      W.t = Math.min(1, W.t + dt / W.dur);
+      const e = ease(W.t);
+      if (W.hop){
+        walker.position.lerpVectors(W.p0, W.p1, e);
+        walker.position.y += Math.sin(Math.PI * e) * Math.min(2, 0.5 + W.p0.distanceTo(W.p1) * 0.25);
+      } else W.s = W.s0 + (W.s1 - W.s0) * e;
+    }
+    if (curve && !W.hop) walker.position.copy(curve.getPointAt(Math.max(0, Math.min(1, W.s))));
+    const ws = r * 0.3 * (1 + 0.08 * Math.sin(now * 0.008));
+    walker.scale.setScalar(ws);
+    walkerGlow.position.copy(walker.position); walkerGlow.scale.setScalar(r * 2.2);
+    walkerLight.position.copy(walker.position);
+    if (tubeDone){
+      const M = tubeDone.userData.M;
+      tubeDone.geometry.setDrawRange(0, Math.floor(Math.max(0, Math.min(1, W.s)) * M) * 6 * 6);
+    }
+  }
+  if (cam.fly){
+    const Fl = cam.fly; Fl.t = Math.min(1, Fl.t + dt / 0.8); const e = ease(Fl.t);
+    camera.position.lerpVectors(Fl.p0, Fl.p1, e); controls.target.lerpVectors(Fl.t0, Fl.t1, e);
+    if (Fl.t >= 1) cam.fly = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+/* =====================================================================
+   9. 啟動
+   ===================================================================== */
+if (HAS3) initScene(); else { gl = false; initScene(); }
+bindPointer();
+el.speedOut.textContent = `${SPS[st.speed - 1]} 步/秒`;
+setMode(st.mode);
+resize();
+requestAnimationFrame(loop);
+if (!reduceMotion) setTimeout(() => { if (st.idx === 0 && !st.playing && !st.chal.on) play(); }, 1300);
+})();
+</script>
+</body>
+</html>
