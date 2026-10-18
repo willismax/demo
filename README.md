@@ -10,8 +10,4 @@
 
 ## 教學工具
 
-- [排序演算法 3D 實驗室](https://willismax.github.io/demo/sorting-lab/)：用立體長條動畫一步一步看泡沫、選擇、插入、希爾、合併、快速、堆積七種排序，同步亮起 Python、C、Java 程式碼中正在執行的那一行。
-
-- [二元樹 3D 實驗室](https://willismax.github.io/demo/tree-lab/)：看前序、中序、後序、層序走訪如何繞著樹走一圈，並從「前序＋中序」或「後序＋中序」一步步反推出原本的樹；有挑戰模式可以自己點答案。
-
-兩個工具都是單一 HTML 檔，需要連網載入 three.js。網址加上 `#quick`、`#merge` 等可直接開啟指定的排序演算法，加上 `#in`、`#level`、`#rpre`、`#rpost` 可直接開啟指定的走訪或反推模式。
+排序演算法、二元樹與 IP 切割的 3D 教學工具放在 [CS_Course](https://willismax.github.io/CS_Course/interactive-tools/)。原本的 `demo/sorting-lab/` 與 `demo/tree-lab/` 網址會自動轉到新位置。
