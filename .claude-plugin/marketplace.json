@@ -1,0 +1,17 @@
+{
+  "name": "willismax-demo",
+  "owner": {
+    "name": "willismax"
+  },
+  "metadata": {
+    "description": "willismax/demo 的 Claude Code 外掛"
+  },
+  "plugins": [
+    {
+      "name": "mortal-buddy",
+      "source": "./mortal-pets/claude-plugin/mortal-buddy",
+      "description": "活俠傳結緣角色（小梅、小竹）當 Claude Code 寵物，依工作狀態說話、可摸頭餵食聊天累積好感（同人二創）",
+      "version": "0.1.0"
+    }
+  ]
+}
