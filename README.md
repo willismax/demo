@@ -10,7 +10,7 @@
 
 ## 同人小品
 
-- [活俠傳結緣寵物](https://willismax.github.io/demo/mortal-pets/)：把小梅、小竹養在 Codex 與 Claude Code 裡，摸頭、餵食、練功、聊天累積好感。Claude Code 安裝：`/plugin install mortal-buddy --marketplace willismax/demo`，Codex 與其他安裝方式見 [mortal-pets/README.md](mortal-pets/README.md)。
+- [活俠傳結緣寵物](https://willismax.github.io/mortal-pets/)：把小梅、小竹、小師妹、龍湘、夏侯蘭養在 Codex 與 Claude Code 裡，摸頭、餵食、練功、聊天累積好感。已搬到獨立 repo [willismax/mortal-pets](https://github.com/willismax/mortal-pets)，原本的 `demo/mortal-pets/` 網址會自動轉過去。
 
 ## 教學工具
 
